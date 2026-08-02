@@ -6,16 +6,33 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:diff": "prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script > prisma/turso-init.sql",
+    "db:push:turso": "node scripts/push-to-turso.mjs prisma/turso-init.sql",
+    "db:reset": "node scripts/reset-db.mjs"
   },
   "dependencies": {
+    "@auth/prisma-adapter": "^2.11.3",
+    "@libsql/client": "^0.17.4",
+    "@prisma/adapter-libsql": "^7.9.1",
+    "@prisma/client": "^7.9.1",
+    "cloudinary": "^2.10.0",
+    "leaflet": "^1.9.4",
     "next": "16.2.12",
+    "next-auth": "^5.0.0-beta.32",
+    "nodemailer": "^8.0.11",
+    "prisma": "^7.9.1",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "react-leaflet": "^5.0.0",
+    "xlsx": "^0.18.5",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/leaflet": "^1.9.21",
     "@types/node": "^20",
+    "@types/nodemailer": "^8.0.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

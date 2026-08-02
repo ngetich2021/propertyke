@@ -1,0 +1,223 @@
+// Prisma schema for the lands/properties/rentals marketplace.
+// Datasource connection is configured in prisma.config.ts (Turso/libsql).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum ListingType {
+  LAND
+  PROPERTY
+  RENTAL
+}
+
+enum ListingStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+  SOLD
+  RENTED
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
+enum AdStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+  EXPIRED
+}
+
+enum ReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+enum AdTargetMode {
+  EVERYWHERE
+  SELECT
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  phone         String?
+  // Shown as "Listed by" on this user's listings (falling back to `name`
+  // when unset) and used to auto-fill the "Company name" field when
+  // creating an ad, so it's only ever typed once. See SettingsSection.
+  businessName  String?
+  role          UserRole  @default(USER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+
+  listings Listing[] @relation("ListingOwner")
+  orders   Order[]   @relation("OrderBuyer")
+  ads      Ad[]      @relation("AdOwner")
+  reports  Report[]  @relation("ReportReporter")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Listing {
+  id            String        @id @default(cuid())
+  type          ListingType
+  title         String
+  description   String
+  price         Float
+  currency      String        @default("KES")
+  latitude      Float?
+  longitude     Float?
+  address       String?
+  images        String        @default("[]") // JSON-encoded string[] of Cloudinary URLs
+  bedrooms      Int?
+  bathrooms     Int?
+  acreage       Float?
+  rentPerMonth  Float?
+  status        ListingStatus @default(PENDING)
+  // Listing-hosting fee (separate from `price`, the sale/rent price of the
+  // property itself): the owner pays a daily rate x `days` to keep the
+  // listing live. startDate/endDate are set when an admin approves the
+  // listing (confirming the fee was paid) and drive automatic expiry --
+  // see cleanupExpiredListings in lib/actions/maintenance.ts.
+  days             Int           @default(30)
+  feeAmount        Float?
+  startDate        DateTime?
+  endDate          DateTime?
+  // Last time an "about to expire" reminder email was sent -- throttles
+  // notifyExpiringListings to roughly once per 6h bracket instead of every
+  // time a lazy maintenance sweep runs. See lib/actions/maintenance.ts.
+  expiryNotifiedAt DateTime?
+  ownerId          String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  owner   User     @relation("ListingOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  orders  Order[]
+  ads     Ad[]
+  reports Report[]
+
+  @@index([type, status])
+  @@index([ownerId])
+}
+
+model Order {
+  id        String      @id @default(cuid())
+  listingId String
+  buyerId   String
+  amount    Float
+  status    OrderStatus @default(PENDING)
+  message   String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  buyer   User    @relation("OrderBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+
+  @@index([listingId])
+  @@index([buyerId])
+}
+
+model Ad {
+  id                 String   @id @default(cuid())
+  listingId          String
+  ownerId            String
+  // Total price for the campaign: dailyRate (see lib/adPricing.ts, which
+  // doubles it for targetMode EVERYWHERE vs a SELECT/local region) x `days`.
+  amount             Float
+  days               Int      @default(1)
+  companyName        String?
+  productName        String?
+  productDescription String?
+  companyContact     String?
+  media              String   @default("[]") // JSON-encoded {type:"youtube"|"cloudinary", url}[]
+  targetMode         AdTargetMode @default(EVERYWHERE)
+  targetLatitude     Float?
+  targetLongitude    Float?
+  targetRadiusKm     Float?
+  repeatEnabled      Boolean  @default(false)
+  repeatCount        Int?
+  adminNote          String?
+  status             AdStatus @default(PENDING)
+  startDate DateTime?
+  endDate   DateTime?
+  expiryNotifiedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  owner   User    @relation("AdOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([listingId])
+  @@index([ownerId])
+}
+
+model Report {
+  id         String       @id @default(cuid())
+  listingId  String
+  reporterId String
+  reason     String
+  status     ReportStatus @default(OPEN)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  listing  Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  reporter User    @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([listingId])
+  @@index([reporterId])
+}
