@@ -11,11 +11,19 @@ import {
 } from "@/lib/schemas";
 import type { ActionState } from "@/lib/schemas";
 import { haversineDistanceKm } from "@/lib/geo";
-import { reverseGeocode } from "@/lib/geocode";
+import { reverseGeocode, reverseGeocodeAddress } from "@/lib/geocode";
 import { calculateListingFee } from "@/lib/listingPricing";
 import { normalizeListingFields } from "@/lib/listingFields";
 import { cleanupExpiredListings, notifyExpiringListings } from "@/lib/actions/maintenance";
 import type { ListingType } from "@/app/generated/prisma/client";
+
+// Lets the listing form auto-fill Address from wherever was just picked on
+// the map, instead of asking the owner to type out the same location twice.
+export async function getAddressSuggestion(latitude: number, longitude: number) {
+  const parsed = nearbySearchSchema.safeParse({ latitude, longitude });
+  if (!parsed.success) return null;
+  return reverseGeocodeAddress(parsed.data.latitude, parsed.data.longitude);
+}
 
 export async function createListing(
   _prevState: ActionState,

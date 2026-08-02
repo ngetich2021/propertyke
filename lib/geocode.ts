@@ -1,5 +1,29 @@
 import "server-only";
 
+// A fuller, human-readable address for the exact point picked on the map --
+// used to auto-fill a listing's Address field so it isn't typed out by hand
+// right after being pinpointed on the map (the same information twice).
+// Deliberately a separate call from reverseGeocode below (which only wants
+// the nearest town name, at a coarser zoom) rather than reusing its result.
+export async function reverseGeocodeAddress(lat: number, lng: number): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1`,
+      {
+        headers: {
+          "User-Agent": "PropertiesMarketplace/1.0 (contact: ngetichjustine1@gmail.com)",
+        },
+        next: { revalidate: 86400 },
+      }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return typeof data.display_name === "string" ? data.display_name : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
   try {
     const res = await fetch(

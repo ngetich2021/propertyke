@@ -56,7 +56,11 @@ export function AdForm({
         }))
       : [newRow()]
   );
-  const [listingId] = useState(ad?.listingId ?? listings[0]?.id ?? "");
+  const [listingId, setListingId] = useState(ad?.listingId ?? listings[0]?.id ?? "");
+  const [productName, setProductName] = useState(ad?.productName ?? listings[0]?.title ?? "");
+  const [productDescription, setProductDescription] = useState(
+    ad?.productDescription ?? listings[0]?.description ?? ""
+  );
   const [targetMode, setTargetMode] = useState<AdTargetMode>(ad?.targetMode ?? "EVERYWHERE");
   const [targetLocation, setTargetLocation] = useState<LatLng | null>(
     ad?.targetLatitude != null && ad?.targetLongitude != null
@@ -83,6 +87,20 @@ export function AdForm({
   // and caps for real regardless of what's shown here.
   const eligibility = selectedListing ? checkAdEligibility(selectedListing) : null;
   const listingRemainingDays = eligibility?.eligible ? eligibility.remainingDays : 0;
+
+  // Switching which listing this ad promotes re-fills the product
+  // name/description from that listing's own title/description -- the
+  // listing form already asked for that once, so re-typing it here would
+  // just be the same information a second time. Still just a starting
+  // point: both fields stay editable afterward.
+  function handleListingChange(id: string) {
+    setListingId(id);
+    const next = listings.find((l) => l.id === id);
+    if (next) {
+      setProductName(next.title);
+      setProductDescription(next.description);
+    }
+  }
 
   function updateRow(id: string, patch: Partial<MediaRow>) {
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
@@ -118,7 +136,8 @@ export function AdForm({
         ) : (
           <select
             name="listingId"
-            defaultValue={listingId}
+            value={listingId}
+            onChange={(e) => handleListingChange(e.target.value)}
             required
             className="w-full rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
           >
@@ -162,7 +181,8 @@ export function AdForm({
         <label className="mb-1 block text-xs font-medium">Product name</label>
         <input
           name="productName"
-          defaultValue={ad?.productName ?? ""}
+          value={productName}
+          onChange={(e) => setProductName(e.target.value)}
           required
           maxLength={120}
           className="w-full rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
@@ -174,7 +194,8 @@ export function AdForm({
         <label className="mb-1 block text-xs font-medium">Product description</label>
         <textarea
           name="productDescription"
-          defaultValue={ad?.productDescription ?? ""}
+          value={productDescription}
+          onChange={(e) => setProductDescription(e.target.value)}
           rows={3}
           required
           maxLength={2000}

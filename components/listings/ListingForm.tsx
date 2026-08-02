@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { createListing, updateListing } from "@/lib/actions/listings";
+import { createListing, updateListing, getAddressSuggestion } from "@/lib/actions/listings";
 import { uploadImageToCloudinary } from "@/lib/uploadImage";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { FieldError } from "@/components/ui/FieldError";
@@ -27,6 +27,23 @@ export function ListingForm({ listing }: { listing?: Listing }) {
   const [days, setDays] = useState(String(listing?.days ?? 30));
   const daysNum = Math.max(1, Math.trunc(Number(days)) || 1);
   const fee = calculateListingFee(type, daysNum);
+  const [address, setAddress] = useState(listing?.address ?? "");
+  const [addressLoading, setAddressLoading] = useState(false);
+
+  // Picking a point on the map already pins down where this is -- typing
+  // the address out by hand right after is the same information twice, so
+  // fill it in automatically from the picked point. Still just a starting
+  // point: the field stays editable for anyone who wants to refine it.
+  async function handleLocationChange(coords: LatLng) {
+    setLocation(coords);
+    setAddressLoading(true);
+    try {
+      const suggested = await getAddressSuggestion(coords.lat, coords.lng);
+      if (suggested) setAddress(suggested);
+    } finally {
+      setAddressLoading(false);
+    }
+  }
 
   async function handleFiles(files: FileList | null) {
     if (!files?.length) return;
@@ -110,10 +127,16 @@ export function ListingForm({ listing }: { listing?: Listing }) {
           <label className="mb-1 block text-sm font-medium">Address</label>
           <input
             name="address"
-            defaultValue={listing?.address ?? ""}
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
             maxLength={200}
             className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
           />
+          {addressLoading && (
+            <p className="mt-1 flex items-center gap-1.5 text-xs text-zinc-500">
+              <Spinner className="h-3 w-3" /> Filling in from the map…
+            </p>
+          )}
         </div>
       </div>
 
@@ -138,7 +161,7 @@ export function ListingForm({ listing }: { listing?: Listing }) {
 
       <div>
         <label className="mb-1 block text-sm font-medium">Location</label>
-        <LocationPicker value={location} onChange={setLocation} />
+        <LocationPicker value={location} onChange={handleLocationChange} />
         <input type="hidden" name="latitude" value={location?.lat ?? ""} />
         <input type="hidden" name="longitude" value={location?.lng ?? ""} />
       </div>
