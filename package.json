@@ -2,11 +2,15 @@
   "name": "propeties",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "postinstall": "prisma generate",
     "db:diff": "prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script > prisma/turso-init.sql",
     "db:push:turso": "node scripts/push-to-turso.mjs prisma/turso-init.sql",
     "db:reset": "node scripts/reset-db.mjs"
