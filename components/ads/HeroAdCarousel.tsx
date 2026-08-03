@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { HeroVideo } from "@/components/ads/HeroVideo";
 import { useAdReveal } from "@/lib/useAdReveal";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 import { ListingLocationMap } from "@/components/listings/ListingLocationMap";
 import { ListingPreviewCard } from "@/components/listings/ListingPreviewCard";
 import { ListingDetailModal } from "@/components/listings/ListingDetailModal";
@@ -82,62 +83,90 @@ export function HeroAdCarousel({ ads }: { ads: LiveAdSlot[] }) {
       />
 
       {reveal.open && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={reveal.close}
-        >
-          <div
-            className="w-full max-w-sm rounded-lg bg-white p-4 shadow-xl dark:bg-zinc-950"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-semibold">Plot location</h3>
-              <button
-                type="button"
-                onClick={reveal.close}
-                aria-label="Close"
-                className="flex h-7 w-7 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900"
-              >
-                ×
-              </button>
-            </div>
-
-            {reveal.isPending && (
-              <div className="flex items-center justify-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-400 dark:border-zinc-800 dark:bg-zinc-900">
-                <Spinner className="h-4 w-4" /> Loading listing…
-              </div>
-            )}
-            {!reveal.isPending && reveal.summary && (
-              <div className="flex flex-col gap-3">
-                {reveal.summary.latitude != null && reveal.summary.longitude != null ? (
-                  <ListingLocationMap
-                    latitude={reveal.summary.latitude}
-                    longitude={reveal.summary.longitude}
-                  />
-                ) : (
-                  reveal.summary.address && (
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400">{reveal.summary.address}</p>
-                  )
-                )}
-                <ListingPreviewCard
-                  listing={reveal.summary}
-                  onOpenDetails={() => {
-                    reveal.close();
-                    setDetailsOpen(true);
-                  }}
-                />
-              </div>
-            )}
-            {!reveal.isPending && !reveal.summary && (
-              <p className="text-xs text-zinc-500">This listing is no longer available.</p>
-            )}
-          </div>
-        </div>
+        <RevealPopup reveal={reveal} onOpenDetails={() => setDetailsOpen(true)} />
       )}
 
       {detailsOpen && reveal.listingId && (
         <ListingDetailModal listingId={reveal.listingId} onClose={() => setDetailsOpen(false)} />
       )}
     </>
+  );
+}
+
+// Split out from HeroAdCarousel (which never unmounts once a hero ad is
+// showing) specifically so this only mounts/unmounts with `reveal.open` --
+// useFocusTrap runs its setup on mount, which needs to be *this* mount, not
+// the carousel's.
+function RevealPopup({
+  reveal,
+  onOpenDetails,
+}: {
+  reveal: ReturnType<typeof useAdReveal>;
+  onOpenDetails: () => void;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") reveal.close();
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [reveal]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={reveal.close}>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ad-reveal-heading"
+        tabIndex={-1}
+        className="w-full max-w-sm rounded-lg bg-white p-4 shadow-xl outline-none dark:bg-zinc-950"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex items-center justify-between">
+          <h3 id="ad-reveal-heading" className="text-sm font-semibold">
+            Plot location
+          </h3>
+          <button
+            type="button"
+            onClick={reveal.close}
+            aria-label="Close"
+            className="flex h-7 w-7 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900"
+          >
+            ×
+          </button>
+        </div>
+
+        {reveal.isPending && (
+          <div className="flex items-center justify-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-400 dark:border-zinc-800 dark:bg-zinc-900">
+            <Spinner className="h-4 w-4" /> Loading listing…
+          </div>
+        )}
+        {!reveal.isPending && reveal.summary && (
+          <div className="flex flex-col gap-3">
+            {reveal.summary.latitude != null && reveal.summary.longitude != null ? (
+              <ListingLocationMap latitude={reveal.summary.latitude} longitude={reveal.summary.longitude} />
+            ) : (
+              reveal.summary.address && (
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">{reveal.summary.address}</p>
+              )
+            )}
+            <ListingPreviewCard
+              listing={reveal.summary}
+              onOpenDetails={() => {
+                reveal.close();
+                onOpenDetails();
+              }}
+            />
+          </div>
+        )}
+        {!reveal.isPending && !reveal.summary && (
+          <p className="text-xs text-zinc-500">This listing is no longer available.</p>
+        )}
+      </div>
+    </div>
   );
 }

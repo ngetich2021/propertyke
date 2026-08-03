@@ -13,7 +13,7 @@ export default async function Home({
   const section: AdminSectionKey = isAdminSection(params.section) ? params.section : "roles";
 
   return (
-    <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
+    <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 focus:outline-none">
       <TabContent tab={tab} atab={atab} section={section} />
     </main>
   );

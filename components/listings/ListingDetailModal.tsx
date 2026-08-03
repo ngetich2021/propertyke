@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { signIn } from "next-auth/react";
 import { getListingDetail, deleteListing } from "@/lib/actions/listings";
 import { cloudinaryThumb, formatMoney, parseImages } from "@/lib/format";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ListingLocationMap } from "@/components/listings/ListingLocationMap";
 import { InterestForm } from "@/components/listings/InterestForm";
@@ -12,6 +13,7 @@ import { ReportForm } from "@/components/listings/ReportForm";
 import { EditListingToggle } from "@/components/listings/EditListingToggle";
 import { ExtendListingForm } from "@/components/listings/ExtendListingForm";
 import { Spinner } from "@/components/ui/Spinner";
+import { RevealPhoneButton } from "@/components/ui/RevealPhoneButton";
 
 type Detail = Awaited<ReturnType<typeof getListingDetail>>;
 
@@ -19,6 +21,8 @@ export function ListingDetailModal({ listingId, onClose }: { listingId: string; 
   const [detail, setDetail] = useState<Detail | undefined>(undefined);
   const [isDeleting, startDelete] = useTransition();
   const [showMap, setShowMap] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,11 +54,18 @@ export function ListingDetailModal({ listingId, onClose }: { listingId: string; 
   return createPortal(
     <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div
-        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-4 shadow-xl dark:bg-zinc-950"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="listing-detail-heading"
+        tabIndex={-1}
+        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-4 shadow-xl outline-none dark:bg-zinc-950"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Listing details</h2>
+          <h2 id="listing-detail-heading" className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+            Listing details
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -141,19 +152,12 @@ export function ListingDetailModal({ listingId, onClose }: { listingId: string; 
                   {detail.listing.owner.businessName ?? detail.listing.owner.name ?? "the owner"}
                 </span>
               </p>
+              {detail.isAdmin && !detail.isOwner && (
+                <p className="text-xs text-zinc-500">{detail.listing.owner.email}</p>
+              )}
               {!detail.isOwner && (
                 detail.listing.owner.phone ? (
-                  // One button everywhere -- the number is always visible
-                  // (a phone number on its own means nothing revealed, so
-                  // desktop needs to actually see it to write it down or
-                  // dial some other way), and `tel:` is what makes a tap on
-                  // a real phone jump straight into the dialer.
-                  <a
-                    href={`tel:${detail.listing.owner.phone}`}
-                    className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
-                  >
-                    📞 {detail.listing.owner.phone}
-                  </a>
+                  <RevealPhoneButton phone={detail.listing.owner.phone} />
                 ) : (
                   <p className="mt-1 text-xs text-zinc-400">No phone number on file — use the form below.</p>
                 )
@@ -191,6 +195,7 @@ export function ListingDetailModal({ listingId, onClose }: { listingId: string; 
                     listingId={detail.listing.id}
                     type={detail.listing.type}
                     currency={detail.listing.currency}
+                    defaultMpesaPhone={detail.viewerPhone}
                   />
                 )}
               </div>
@@ -200,7 +205,11 @@ export function ListingDetailModal({ listingId, onClose }: { listingId: string; 
               <div className="mt-6 max-w-sm rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
                 <h2 className="mb-2 text-sm font-semibold">Interested?</h2>
                 {detail.signedIn ? (
-                  <InterestForm listingId={detail.listing.id} price={detail.listing.price} />
+                  <InterestForm
+                    listingId={detail.listing.id}
+                    price={detail.listing.price}
+                    defaultPhone={detail.viewerPhone}
+                  />
                 ) : (
                   <p className="text-sm text-zinc-500">
                     <button

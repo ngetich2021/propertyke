@@ -37,10 +37,11 @@ export function ListingLocationMapInner({
 
   return (
     <div className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
-      <div className="flex justify-end gap-1 border-b border-zinc-200 bg-zinc-50 px-2 py-1 dark:border-zinc-800 dark:bg-zinc-900">
+      <div role="group" aria-label="Map layer" className="flex justify-end gap-1 border-b border-zinc-200 bg-zinc-50 px-2 py-1 dark:border-zinc-800 dark:bg-zinc-900">
         <button
           type="button"
           onClick={() => setLayer("satellite")}
+          aria-pressed={layer === "satellite"}
           className={`rounded px-2 py-0.5 text-xs font-medium ${
             layer === "satellite"
               ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
@@ -52,6 +53,7 @@ export function ListingLocationMapInner({
         <button
           type="button"
           onClick={() => setLayer("street")}
+          aria-pressed={layer === "street"}
           className={`rounded px-2 py-0.5 text-xs font-medium ${
             layer === "street"
               ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"

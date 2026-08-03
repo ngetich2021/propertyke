@@ -13,9 +13,13 @@ import { sendMail } from "@/lib/mail";
 import { calculateAdTotal } from "@/lib/adPricing";
 import { checkAdEligibility, capAdDays } from "@/lib/adEligibility";
 import { cleanupExpiredAds, notifyExpiringAds } from "@/lib/actions/maintenance";
+import { toMpesaPhone, initiateStkPush } from "@/lib/mpesa";
 import type { ListingType } from "@/app/generated/prisma/client";
 
-export async function createAd(
+// Validates the ad and sends the M-Pesa prompt for its campaign cost -- the
+// ad itself isn't created here. It's only actually created once that
+// payment resolves to SUCCESS (see lib/paymentApply.ts).
+export async function initiateAdPayment(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
@@ -89,32 +93,54 @@ export async function createAd(
   }
   const { days, notice } = capAdDays(parsed.data.days, eligibility.remainingDays);
 
-  await prisma.ad.create({
+  const mpesaPhone = toMpesaPhone(String(formData.get("mpesaPhone") ?? ""));
+  if (!mpesaPhone) {
+    return { fieldErrors: { mpesaPhone: ["Enter a valid Safaricom number, e.g. 0712345678."] } };
+  }
+
+  // Never trust a client-submitted price: always derive it from the
+  // listing type, repeat option, target mode (EVERYWHERE pays double a
+  // SELECT/local region) and the (possibly capped) number of days,
+  // server-side.
+  const amount = calculateAdTotal(listing.type, parsed.data.repeatEnabled, parsed.data.targetMode, days);
+
+  const stk = await initiateStkPush({
+    phone: mpesaPhone,
+    amount,
+    accountReference: "Ad fee",
+    transactionDesc: "Ad fee",
+  });
+  if (!stk.ok) {
+    return { error: stk.error };
+  }
+
+  const payment = await prisma.payment.create({
     data: {
-      listingId: listing.id,
-      ownerId: user.id,
-      // Never trust a client-submitted price: always derive it from the
-      // listing type, repeat option, target mode (EVERYWHERE pays double a
-      // SELECT/local region) and the (possibly capped) number of days,
-      // server-side.
-      amount: calculateAdTotal(listing.type, parsed.data.repeatEnabled, parsed.data.targetMode, days),
-      days,
-      companyName: parsed.data.companyName,
-      productName: parsed.data.productName,
-      productDescription: parsed.data.productDescription,
-      companyContact: parsed.data.companyContact,
-      media: JSON.stringify(media),
-      targetMode: parsed.data.targetMode,
-      targetLatitude: parsed.data.targetMode === "SELECT" ? parsed.data.targetLatitude : null,
-      targetLongitude: parsed.data.targetMode === "SELECT" ? parsed.data.targetLongitude : null,
-      targetRadiusKm: parsed.data.targetMode === "SELECT" ? parsed.data.targetRadiusKm : null,
-      repeatEnabled: parsed.data.repeatEnabled,
-      repeatCount: parsed.data.repeatEnabled ? parsed.data.repeatCount : null,
+      userId: user.id,
+      purpose: "AD_CREATE",
+      amount,
+      phone: mpesaPhone,
+      payload: JSON.stringify({
+        listingId: listing.id,
+        days,
+        companyName: parsed.data.companyName,
+        productName: parsed.data.productName,
+        productDescription: parsed.data.productDescription,
+        companyContact: parsed.data.companyContact,
+        media,
+        targetMode: parsed.data.targetMode,
+        targetLatitude: parsed.data.targetMode === "SELECT" ? parsed.data.targetLatitude : null,
+        targetLongitude: parsed.data.targetMode === "SELECT" ? parsed.data.targetLongitude : null,
+        targetRadiusKm: parsed.data.targetMode === "SELECT" ? parsed.data.targetRadiusKm : null,
+        repeatEnabled: parsed.data.repeatEnabled,
+        repeatCount: parsed.data.repeatEnabled ? parsed.data.repeatCount : null,
+      }),
+      merchantRequestId: stk.merchantRequestId,
+      checkoutRequestId: stk.checkoutRequestId,
     },
   });
 
-  revalidatePath("/");
-  return { success: true, notice };
+  return { pendingPayment: { paymentId: payment.id, amount, phone: mpesaPhone }, notice };
 }
 
 export async function updateAd(
@@ -228,9 +254,10 @@ export async function deleteAd(formData: FormData): Promise<void> {
 }
 
 // Lets an owner (or admin) pay for more days without going back through
-// admin re-review. Extends from whichever is later, `endDate` or now, so a
-// lapsed ad doesn't get backdated extra days it never actually aired.
-export async function extendAd(
+// admin re-review. Sends the M-Pesa prompt for the extra days; the
+// extension itself is only applied once that payment succeeds (see
+// lib/paymentApply.ts).
+export async function initiateExtendAdPayment(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
@@ -273,24 +300,36 @@ export async function extendAd(
           Math.ceil((ad.listing.endDate!.getTime() - base.getTime()) / (24 * 60 * 60 * 1000))
         );
   const { days: extraDays, notice } = capAdDays(parsed.data.extraDays, remainingFromBase);
-
-  const endDate = new Date(base.getTime() + extraDays * 24 * 60 * 60 * 1000);
   const extraCost = calculateAdTotal(ad.listing.type, ad.repeatEnabled, ad.targetMode, extraDays);
 
-  await prisma.ad.update({
-    where: { id: ad.id },
+  const mpesaPhone = toMpesaPhone(String(formData.get("mpesaPhone") ?? user.phone ?? ""));
+  if (!mpesaPhone) {
+    return { fieldErrors: { mpesaPhone: ["Enter a valid Safaricom number, e.g. 0712345678."] } };
+  }
+
+  const stk = await initiateStkPush({
+    phone: mpesaPhone,
+    amount: extraCost,
+    accountReference: "Extend ad",
+    transactionDesc: "Extend ad",
+  });
+  if (!stk.ok) {
+    return { error: stk.error };
+  }
+
+  const payment = await prisma.payment.create({
     data: {
-      status: "ACTIVE",
-      startDate: ad.startDate ?? new Date(),
-      endDate,
-      days: ad.days + extraDays,
-      amount: ad.amount + extraCost,
-      expiryNotifiedAt: null,
+      userId: user.id,
+      purpose: "AD_EXTEND",
+      amount: extraCost,
+      phone: mpesaPhone,
+      payload: JSON.stringify({ adId: ad.id, extraDays }),
+      merchantRequestId: stk.merchantRequestId,
+      checkoutRequestId: stk.checkoutRequestId,
     },
   });
 
-  revalidatePath("/");
-  return { success: true, notice };
+  return { pendingPayment: { paymentId: payment.id, amount: extraCost, phone: mpesaPhone }, notice };
 }
 
 export async function updateAdStatus(

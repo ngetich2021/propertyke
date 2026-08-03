@@ -30,15 +30,18 @@ export async function ReportsPanel() {
               <th className="py-2">Activity</th>
             </tr>
           }
-          rows={activity.map((item, idx) => (
-            <tr key={item.id} className="border-t border-zinc-100 dark:border-zinc-900">
-              <td className={`py-2 ${STICKY_COL_1}`}>{idx + 1}</td>
-              <td className={`py-2 text-zinc-500 ${STICKY_COL_2}`}>
-                {item.at.toLocaleString()}
-              </td>
-              <td className="py-2">{item.description}</td>
-            </tr>
-          ))}
+          rows={activity.map((item, idx) => ({
+            searchText: item.description,
+            node: (
+              <tr key={item.id} className="border-t border-zinc-100 dark:border-zinc-900">
+                <td className={`py-2 ${STICKY_COL_1}`}>{idx + 1}</td>
+                <td className={`py-2 text-zinc-500 ${STICKY_COL_2}`}>
+                  {item.at.toLocaleString()}
+                </td>
+                <td className="py-2">{item.description}</td>
+              </tr>
+            ),
+          }))}
         />
       </section>
 
@@ -62,48 +65,51 @@ export async function ReportsPanel() {
               <th className="py-2">Actions</th>
             </tr>
           }
-          rows={reports.map((report, idx) => (
-            <ClickableRow key={report.id} listingId={report.listingId}>
-              <td className={`py-2 ${STICKY_COL_1}`}>{idx + 1}</td>
-              <td className={`py-2 ${STICKY_COL_2}`}>{report.listing.title}</td>
-              <td className="py-2 text-zinc-500">
-                <div>{report.listing.owner.email}</div>
-                {report.listing.owner.phone && (
-                  <a
-                    href={`tel:${report.listing.owner.phone}`}
-                    onClick={(e) => e.stopPropagation()}
-                    className="underline"
-                  >
-                    📞 {report.listing.owner.phone}
-                  </a>
-                )}
-              </td>
-              <td className="py-2 text-zinc-500">
-                <div>{report.reporter.email}</div>
-                {report.reporter.phone && (
-                  <a
-                    href={`tel:${report.reporter.phone}`}
-                    onClick={(e) => e.stopPropagation()}
-                    className="underline"
-                  >
-                    📞 {report.reporter.phone}
-                  </a>
-                )}
-              </td>
-              <td className="py-2 italic">&ldquo;{report.reason}&rdquo;</td>
-              <td className="py-2">
-                <StatusBadge status={report.status} />
-              </td>
-              <td className="py-2" onClick={(e) => e.stopPropagation()}>
-                {report.status === "OPEN" && (
-                  <div className="flex gap-2">
-                    <ReportStatusForm reportId={report.id} status="RESOLVED" />
-                    <ReportStatusForm reportId={report.id} status="DISMISSED" />
-                  </div>
-                )}
-              </td>
-            </ClickableRow>
-          ))}
+          rows={reports.map((report, idx) => ({
+            searchText: [
+              report.listing.title,
+              report.listing.owner.email,
+              report.reporter.email,
+              report.reason,
+              report.status,
+            ]
+              .filter(Boolean)
+              .join(" "),
+            node: (
+              <ClickableRow key={report.id} listingId={report.listingId}>
+                <td className={`py-2 ${STICKY_COL_1}`}>{idx + 1}</td>
+                <td className={`py-2 ${STICKY_COL_2}`}>{report.listing.title}</td>
+                <td className="py-2 text-zinc-500">
+                  <div>{report.listing.owner.email}</div>
+                  {report.listing.owner.phone && (
+                    <a href={`tel:${report.listing.owner.phone}`} className="underline">
+                      📞 {report.listing.owner.phone}
+                    </a>
+                  )}
+                </td>
+                <td className="py-2 text-zinc-500">
+                  <div>{report.reporter.email}</div>
+                  {report.reporter.phone && (
+                    <a href={`tel:${report.reporter.phone}`} className="underline">
+                      📞 {report.reporter.phone}
+                    </a>
+                  )}
+                </td>
+                <td className="py-2 italic">&ldquo;{report.reason}&rdquo;</td>
+                <td className="py-2">
+                  <StatusBadge status={report.status} />
+                </td>
+                <td className="py-2">
+                  {report.status === "OPEN" && (
+                    <div className="flex gap-2">
+                      <ReportStatusForm reportId={report.id} status="RESOLVED" />
+                      <ReportStatusForm reportId={report.id} status="DISMISSED" />
+                    </div>
+                  )}
+                </td>
+              </ClickableRow>
+            ),
+          }))}
         />
       </section>
     </div>

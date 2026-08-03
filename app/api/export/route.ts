@@ -88,6 +88,31 @@ export async function GET(request: NextRequest) {
         }))
       );
     }
+    case "payments": {
+      await requireAdmin();
+      const payments = await prisma.payment.findMany({
+        where: { status: "SUCCESS" },
+        include: { user: true },
+        orderBy: { createdAt: "desc" },
+      });
+      const SOURCE_LABEL: Record<string, string> = {
+        LISTING_CREATE: "Listing",
+        LISTING_EXTEND: "Listing addition",
+        AD_CREATE: "Ads",
+        AD_EXTEND: "Ads addition",
+      };
+      return toXlsxResponse(
+        "payments.xlsx",
+        payments.map((p) => ({
+          Time: p.createdAt.toISOString(),
+          Name: p.user.name ?? p.user.email,
+          Tel: p.phone,
+          MpesaCode: p.mpesaReceipt ?? "",
+          Source: SOURCE_LABEL[p.purpose] ?? p.purpose,
+          Amount: p.amount,
+        }))
+      );
+    }
     case "reports": {
       await requireAdmin();
       const reports = await prisma.report.findMany({
@@ -118,6 +143,28 @@ export async function GET(request: NextRequest) {
     case "housetolet":
       await requireAdmin();
       return toXlsxResponse("housetolet.xlsx", await adminListingsRows("RENTAL"));
+    case "orders": {
+      await requireAdmin();
+      const orders = await prisma.order.findMany({
+        include: { listing: { include: { owner: true } }, buyer: true },
+        orderBy: { createdAt: "desc" },
+      });
+      return toXlsxResponse(
+        "orders.xlsx",
+        orders.map((o) => ({
+          ID: o.id,
+          Listing: o.listing.title,
+          Buyer: o.buyer.email,
+          BuyerPhone: o.contactPhone,
+          PreferredContact: o.contactMethod,
+          Seller: o.listing.owner.email,
+          Amount: o.amount,
+          Status: o.status,
+          Message: o.message ?? "",
+          Created: o.createdAt.toISOString(),
+        }))
+      );
+    }
     case "my-orders": {
       const user = await requireUser();
       const [asBuyer, asOwner] = await Promise.all([

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 import type { ReactNode } from "react";
 import { ListingDetailModal } from "@/components/listings/ListingDetailModal";
+import { CLICKABLE_ROW_CLASS, handleRowKeyDown, isInteractiveRowClick } from "@/lib/clickableRow";
 
 export function ClickableRow({
   listingId,
@@ -13,11 +14,18 @@ export function ClickableRow({
 }) {
   const [open, setOpen] = useState(false);
 
+  function handleClick(e: MouseEvent<HTMLTableRowElement>) {
+    if (isInteractiveRowClick(e)) return;
+    setOpen(true);
+  }
+
   return (
     <>
       <tr
-        onClick={() => setOpen(true)}
-        className="cursor-pointer border-t border-zinc-100 hover:bg-zinc-50 dark:border-zinc-900 dark:hover:bg-zinc-900"
+        onClick={handleClick}
+        onKeyDown={(e) => handleRowKeyDown(e, () => setOpen(true))}
+        tabIndex={0}
+        className={CLICKABLE_ROW_CLASS}
       >
         {children}
       </tr>

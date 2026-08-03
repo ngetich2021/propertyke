@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AdForm } from "@/components/listings/AdForm";
+import { Modal } from "@/components/ui/Modal";
 import type { Listing } from "@/app/generated/prisma/client";
 
 export function AdvertiseToggle({
@@ -15,8 +16,8 @@ export function AdvertiseToggle({
 }) {
   const [open, setOpen] = useState(false);
 
-  if (!open) {
-    return (
+  return (
+    <>
       <button
         onClick={() => setOpen(true)}
         disabled={disabled}
@@ -24,15 +25,11 @@ export function AdvertiseToggle({
       >
         + Advertise
       </button>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-2">
-      <AdForm listings={listings} advertiser={advertiser} />
-      <button onClick={() => setOpen(false)} className="w-fit text-xs text-zinc-500 underline">
-        Cancel
-      </button>
-    </div>
+      {open && (
+        <Modal title="Advertise a listing" onClose={() => setOpen(false)}>
+          <AdForm listings={listings} advertiser={advertiser} onCreated={() => setOpen(false)} />
+        </Modal>
+      )}
+    </>
   );
 }

@@ -1,17 +1,20 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { deleteAd } from "@/lib/actions/ads";
 import { formatMoney } from "@/lib/format";
 import { parseAdMedia } from "@/lib/adMedia";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Spinner } from "@/components/ui/Spinner";
 import { AdForm } from "@/components/listings/AdForm";
 import { ExtendAdForm } from "@/components/listings/ExtendAdForm";
-import type { Ad, Listing } from "@/app/generated/prisma/client";
+import type { Ad, Listing, User } from "@/app/generated/prisma/client";
 
-type AdWithListing = Ad & { listing: Listing };
+// `owner` is only present when opened from the admin Ads panel -- an owner
+// viewing their own ad already knows who posted it.
+type AdWithListing = Ad & { listing: Listing; owner?: User };
 
 // Mirrors ListingDetailModal's edit/delete UX, but for the owner's own ads
 // -- opened from a clickable row in "Your ads" (see ClickableAdRow), so the
@@ -19,6 +22,8 @@ type AdWithListing = Ad & { listing: Listing };
 export function AdDetailModal({ ad, onClose }: { ad: AdWithListing; onClose: () => void }) {
   const [editing, setEditing] = useState(false);
   const [isDeleting, startDelete] = useTransition();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -42,11 +47,18 @@ export function AdDetailModal({ ad, onClose }: { ad: AdWithListing; onClose: () 
   return createPortal(
     <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div
-        className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-lg bg-white p-4 shadow-xl dark:bg-zinc-950"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ad-detail-heading"
+        tabIndex={-1}
+        className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-lg bg-white p-4 shadow-xl outline-none dark:bg-zinc-950"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Ad details</h2>
+          <h2 id="ad-detail-heading" className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+            Ad details
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -68,6 +80,19 @@ export function AdDetailModal({ ad, onClose }: { ad: AdWithListing; onClose: () 
             </div>
 
             {ad.productDescription && <p className="mt-2 text-sm">{ad.productDescription}</p>}
+
+            {ad.owner && (
+              <div className="mt-3 rounded-md border border-zinc-200 p-3 text-sm dark:border-zinc-800">
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-400">Posted by</p>
+                <p>{ad.owner.name ?? "—"}</p>
+                <p className="text-zinc-500">{ad.owner.email}</p>
+                {ad.owner.phone && (
+                  <a href={`tel:${ad.owner.phone}`} className="underline">
+                    📞 {ad.owner.phone}
+                  </a>
+                )}
+              </div>
+            )}
 
             <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-zinc-500">
               <p>Company: {ad.companyName ?? "—"}</p>

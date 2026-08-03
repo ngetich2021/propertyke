@@ -8,7 +8,8 @@ export const listingStatusSchema = z.enum([
   "SOLD",
   "RENTED",
 ]);
-export const orderStatusSchema = z.enum(["PENDING", "PAID", "CANCELLED"]);
+export const orderStatusSchema = z.enum(["PENDING", "UNDER_REVIEW", "CONFIRMED", "PAID", "CANCELLED"]);
+export const orderContactMethodSchema = z.enum(["CALL", "SMS", "WHATSAPP", "EMAIL"]);
 export const adStatusSchema = z.enum(["PENDING", "ACTIVE", "REJECTED", "EXPIRED"]);
 export const reportStatusSchema = z.enum(["OPEN", "RESOLVED", "DISMISSED"]);
 export const userRoleSchema = z.enum(["USER", "ADMIN"]);
@@ -54,6 +55,11 @@ export const nearbySearchSchema = z.object({
 export const interestFormSchema = z.object({
   listingId: z.string().min(1),
   amount: z.preprocess((v) => Number(v), z.number().nonnegative()),
+  contactPhone: z
+    .string()
+    .trim()
+    .regex(/^[+\d][\d\s-]{6,19}$/, { error: "Enter a valid phone number so the owner can reach you." }),
+  contactMethod: orderContactMethodSchema,
   message: z.string().trim().max(1000).optional(),
 });
 
@@ -156,4 +162,8 @@ export type ActionState = {
   // Non-blocking heads-up shown alongside a success (e.g. a requested ad
   // duration got capped to what the listing's paid days actually allow).
   notice?: string;
+  // Set instead of `success` when a request needed money to move first --
+  // the caller switches to an M-Pesa waiting screen for this payment instead
+  // of treating the request as done. See lib/mpesa.ts, lib/paymentApply.ts.
+  pendingPayment?: { paymentId: string; amount: number; phone: string };
 } | undefined;

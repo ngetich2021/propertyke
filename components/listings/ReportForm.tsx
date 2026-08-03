@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useId, useState } from "react";
 import { createReport } from "@/lib/actions/reports";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { FieldError } from "@/components/ui/FieldError";
 
 export function ReportForm({ listingId }: { listingId: string }) {
+  const id = useId();
   const [open, setOpen] = useState(false);
   const [state, action] = useActionState(createReport, undefined);
 
@@ -24,7 +25,11 @@ export function ReportForm({ listingId }: { listingId: string }) {
   return (
     <form action={action} className="flex flex-col gap-2">
       <input type="hidden" name="listingId" value={listingId} />
+      <label htmlFor={`${id}-reason`} className="sr-only">
+        What&apos;s wrong with this listing?
+      </label>
       <textarea
+        id={`${id}-reason`}
         name="reason"
         rows={2}
         placeholder="What's wrong with this listing?"

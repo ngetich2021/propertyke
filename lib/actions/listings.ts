@@ -15,6 +15,7 @@ import { reverseGeocode, reverseGeocodeAddress } from "@/lib/geocode";
 import { calculateListingFee } from "@/lib/listingPricing";
 import { normalizeListingFields } from "@/lib/listingFields";
 import { cleanupExpiredListings, notifyExpiringListings } from "@/lib/actions/maintenance";
+import { toMpesaPhone, initiateStkPush } from "@/lib/mpesa";
 import type { ListingType } from "@/app/generated/prisma/client";
 
 // Lets the listing form auto-fill Address from wherever was just picked on
@@ -25,7 +26,11 @@ export async function getAddressSuggestion(latitude: number, longitude: number) 
   return reverseGeocodeAddress(parsed.data.latitude, parsed.data.longitude);
 }
 
-export async function createListing(
+// Validates the listing and sends the M-Pesa prompt for its hosting fee --
+// the listing itself isn't created here. It only actually gets created once
+// that payment resolves to SUCCESS (see lib/paymentApply.ts), so no listing
+// can exist without a completed payment behind it.
+export async function initiateListingPayment(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
@@ -56,23 +61,40 @@ export async function createListing(
     return { fieldErrors: parsed.error.flatten().fieldErrors };
   }
 
-  await prisma.listing.create({
+  if ((parsed.data.type === "PROPERTY" || parsed.data.type === "RENTAL") && !user.businessName) {
+    return { error: "Add a business/company name in Settings before listing a property or rental." };
+  }
+
+  const mpesaPhone = toMpesaPhone(String(formData.get("mpesaPhone") ?? ""));
+  if (!mpesaPhone) {
+    return { fieldErrors: { mpesaPhone: ["Enter a valid Safaricom number, e.g. 0712345678."] } };
+  }
+
+  const fee = calculateListingFee(parsed.data.type, parsed.data.days);
+
+  const stk = await initiateStkPush({
+    phone: mpesaPhone,
+    amount: fee,
+    accountReference: "Listing fee",
+    transactionDesc: "Listing fee",
+  });
+  if (!stk.ok) {
+    return { error: stk.error };
+  }
+
+  const payment = await prisma.payment.create({
     data: {
-      ...parsed.data,
-      // Never trust the client to have only submitted fields that apply to
-      // the chosen type -- always derive that server-side. See
-      // normalizeListingFields.
-      ...normalizeListingFields(parsed.data.type, parsed.data),
-      images: JSON.stringify(parsed.data.images),
-      // Never trust a client-submitted fee -- always derive it server-side
-      // from the listing type + number of days requested.
-      feeAmount: calculateListingFee(parsed.data.type, parsed.data.days),
-      ownerId: user.id,
+      userId: user.id,
+      purpose: "LISTING_CREATE",
+      amount: fee,
+      phone: mpesaPhone,
+      payload: JSON.stringify(parsed.data),
+      merchantRequestId: stk.merchantRequestId,
+      checkoutRequestId: stk.checkoutRequestId,
     },
   });
 
-  revalidatePath("/");
-  return { success: true };
+  return { pendingPayment: { paymentId: payment.id, amount: fee, phone: mpesaPhone } };
 }
 
 export async function updateListing(
@@ -152,9 +174,10 @@ export async function deleteListing(formData: FormData): Promise<void> {
 
 // Lets an owner (or admin) pay for more days without going back through
 // admin re-review -- nothing about the listing's content changed, just how
-// long it stays live. Extends from whichever is later, `endDate` or now, so
-// a lapsed listing doesn't get backdated extra days it never actually ran.
-export async function extendListing(
+// long it stays live. Sends the M-Pesa prompt for the extra days; the
+// extension itself is only applied once that payment succeeds (see
+// lib/paymentApply.ts).
+export async function initiateExtendListingPayment(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
@@ -179,22 +202,36 @@ export async function extendListing(
     return { error: "Only a live listing can be extended -- resubmit it for review instead." };
   }
 
-  const base = listing.endDate && listing.endDate > new Date() ? listing.endDate : new Date();
-  const endDate = new Date(base.getTime() + parsed.data.extraDays * 24 * 60 * 60 * 1000);
+  const mpesaPhone = toMpesaPhone(String(formData.get("mpesaPhone") ?? user.phone ?? ""));
+  if (!mpesaPhone) {
+    return { fieldErrors: { mpesaPhone: ["Enter a valid Safaricom number, e.g. 0712345678."] } };
+  }
+
   const fee = calculateListingFee(listing.type, parsed.data.extraDays);
 
-  await prisma.listing.update({
-    where: { id: listing.id },
+  const stk = await initiateStkPush({
+    phone: mpesaPhone,
+    amount: fee,
+    accountReference: "Extend listing",
+    transactionDesc: "Extend listing",
+  });
+  if (!stk.ok) {
+    return { error: stk.error };
+  }
+
+  const payment = await prisma.payment.create({
     data: {
-      endDate,
-      days: listing.days + parsed.data.extraDays,
-      feeAmount: (listing.feeAmount ?? 0) + fee,
-      expiryNotifiedAt: null,
+      userId: user.id,
+      purpose: "LISTING_EXTEND",
+      amount: fee,
+      phone: mpesaPhone,
+      payload: JSON.stringify({ listingId: listing.id, extraDays: parsed.data.extraDays }),
+      merchantRequestId: stk.merchantRequestId,
+      checkoutRequestId: stk.checkoutRequestId,
     },
   });
 
-  revalidatePath("/");
-  return { success: true };
+  return { pendingPayment: { paymentId: payment.id, amount: fee, phone: mpesaPhone } };
 }
 
 export async function setListingStatus(
@@ -295,6 +332,10 @@ export async function getListingDetail(listingId: string) {
     isOwner: session?.user.id === listing.ownerId,
     isAdmin: session?.user.role === "ADMIN",
     signedIn: !!session,
+    // Prefills the order form's contact number so a buyer who already has a
+    // phone on file isn't retyping it -- still just a starting point, the
+    // field stays editable since this order might use a different number.
+    viewerPhone: session?.user.phone ?? null,
   };
 }
 

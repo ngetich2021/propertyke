@@ -82,20 +82,23 @@ export async function AdvertiseSection() {
               <th className="py-2">Message from admin</th>
             </tr>
           }
-          rows={ads.map((ad, idx) => (
-            <ClickableAdRow key={ad.id} ad={ad}>
-              <td className={`py-2 ${STICKY_COL_1}`}>{idx + 1}</td>
-              <td className={`py-2 ${STICKY_COL_2}`}>{ad.productName ?? "—"}</td>
-              <td className="py-2">{ad.listing.title}</td>
-              <td className="py-2">{formatMoney(ad.amount, ad.listing.currency)}</td>
-              <td className="py-2">{ad.days}</td>
-              <td className="py-2 text-zinc-500">{parseAdMedia(ad.media).length}</td>
-              <td className="py-2">
-                <StatusBadge status={ad.status} />
-              </td>
-              <td className="py-2 text-zinc-500">{ad.adminNote ?? "—"}</td>
-            </ClickableAdRow>
-          ))}
+          rows={ads.map((ad, idx) => ({
+            searchText: [ad.productName, ad.listing.title, ad.status].filter(Boolean).join(" "),
+            node: (
+              <ClickableAdRow key={ad.id} ad={ad}>
+                <td className={`py-2 ${STICKY_COL_1}`}>{idx + 1}</td>
+                <td className={`py-2 ${STICKY_COL_2}`}>{ad.productName ?? "—"}</td>
+                <td className="py-2">{ad.listing.title}</td>
+                <td className="py-2">{formatMoney(ad.amount, ad.listing.currency)}</td>
+                <td className="py-2">{ad.days}</td>
+                <td className="py-2 text-zinc-500">{parseAdMedia(ad.media).length}</td>
+                <td className="py-2">
+                  <StatusBadge status={ad.status} />
+                </td>
+                <td className="py-2 text-zinc-500">{ad.adminNote ?? "—"}</td>
+              </ClickableAdRow>
+            ),
+          }))}
         />
       </section>
     </div>

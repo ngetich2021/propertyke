@@ -6,6 +6,7 @@ import { AdsPanel } from "./AdsPanel";
 import { UsersPanel } from "./UsersPanel";
 import { AdminListingsPanel } from "./AdminListingsPanel";
 import { ReportsPanel } from "./ReportsPanel";
+import { AdminOrdersPanel } from "./AdminOrdersPanel";
 
 export async function AdminSection({ section }: { section: AdminSectionKey }) {
   await requireAdmin();
@@ -27,5 +28,7 @@ export async function AdminSection({ section }: { section: AdminSectionKey }) {
       return <AdminListingsPanel type="RENTAL" />;
     case "reports":
       return <ReportsPanel />;
+    case "orders":
+      return <AdminOrdersPanel />;
   }
 }

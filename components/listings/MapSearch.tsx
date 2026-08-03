@@ -178,6 +178,7 @@ export function MapSearch({ type, count }: { type: ListingType; count: number })
                   </span>
                   <input
                     type="number"
+                    aria-label="Number of additional listings to show"
                     min={visibleCount + 1}
                     max={results.length}
                     value={moreInput}

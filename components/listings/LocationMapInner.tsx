@@ -94,10 +94,11 @@ export function LocationMapInner({
       <div className="flex items-center justify-between gap-3 border-b border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900">
         <span className="text-xs text-zinc-500">{label}</span>
         <div className="flex items-center gap-2">
-          <div className="flex gap-1 rounded-md border border-zinc-300 p-0.5 dark:border-zinc-700">
+          <div role="group" aria-label="Map layer" className="flex gap-1 rounded-md border border-zinc-300 p-0.5 dark:border-zinc-700">
             <button
               type="button"
               onClick={() => setLayer("satellite")}
+              aria-pressed={layer === "satellite"}
               className={`rounded px-1.5 py-0.5 text-xs font-medium ${
                 layer === "satellite"
                   ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
@@ -109,6 +110,7 @@ export function LocationMapInner({
             <button
               type="button"
               onClick={() => setLayer("street")}
+              aria-pressed={layer === "street"}
               className={`rounded px-1.5 py-0.5 text-xs font-medium ${
                 layer === "street"
                   ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"

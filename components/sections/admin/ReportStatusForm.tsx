@@ -15,8 +15,8 @@ export function ReportStatusForm({ reportId, status }: { reportId: string; statu
         pendingLabel="…"
         className={
           status === "RESOLVED"
-            ? "rounded-md bg-green-600 px-2 py-1 text-xs font-medium text-white hover:bg-green-700"
-            : "rounded-md bg-zinc-500 px-2 py-1 text-xs font-medium text-white hover:bg-zinc-600"
+            ? "rounded-md bg-green-600 px-2 py-1 text-xs font-medium text-white hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800"
+            : "rounded-md bg-zinc-500 px-2 py-1 text-xs font-medium text-white hover:bg-zinc-600 dark:bg-zinc-600 dark:hover:bg-zinc-500"
         }
       >
         {status === "RESOLVED" ? "Resolve" : "Dismiss"}

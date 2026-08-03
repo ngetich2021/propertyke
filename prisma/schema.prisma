@@ -31,8 +31,17 @@ enum ListingStatus {
 
 enum OrderStatus {
   PENDING
+  UNDER_REVIEW
+  CONFIRMED
   PAID
   CANCELLED
+}
+
+enum OrderContactMethod {
+  CALL
+  SMS
+  WHATSAPP
+  EMAIL
 }
 
 enum AdStatus {
@@ -51,6 +60,19 @@ enum ReportStatus {
 enum AdTargetMode {
   EVERYWHERE
   SELECT
+}
+
+enum PaymentPurpose {
+  LISTING_CREATE
+  LISTING_EXTEND
+  AD_CREATE
+  AD_EXTEND
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
 }
 
 model User {
@@ -75,6 +97,7 @@ model User {
   orders   Order[]   @relation("OrderBuyer")
   ads      Ad[]      @relation("AdOwner")
   reports  Report[]  @relation("ReportReporter")
+  payments Payment[]
 }
 
 model Account {
@@ -162,6 +185,11 @@ model Order {
   amount    Float
   status    OrderStatus @default(PENDING)
   message   String?
+  // Captured on every order (not just read from the buyer's profile) so the
+  // seller always has a working contact for this specific order, even if
+  // it's not the number/method on the buyer's account. See InterestForm.
+  contactPhone  String
+  contactMethod OrderContactMethod @default(CALL)
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
@@ -204,6 +232,49 @@ model Ad {
 
   @@index([listingId])
   @@index([ownerId])
+}
+
+// An M-Pesa STK Push attempt. Submitting a new listing/ad, or paying to
+// extend one, no longer writes to Listing/Ad directly -- it validates the
+// request, stores what would be created/applied as `payload`, and only
+// performs it (see lib/paymentApply.ts) once this resolves to SUCCESS via a
+// real, server-verified check against M-Pesa (never from the callback body
+// alone -- see the callback route and getPaymentStatus).
+model Payment {
+  id      String         @id @default(cuid())
+  userId  String
+  purpose PaymentPurpose
+  amount  Float
+  // The MSISDN the STK push was sent to (2547XXXXXXXX) -- confirmed at
+  // payment time, which may differ from the user's profile phone.
+  phone   String
+  // JSON-encoded data needed to perform the gated action once paid: the
+  // validated listing/ad fields for *_CREATE, or {listingId/adId, extraDays}
+  // for *_EXTEND.
+  payload String
+
+  status            PaymentStatus @default(PENDING)
+  merchantRequestId String?
+  checkoutRequestId String?
+  resultDesc        String?
+  // The M-Pesa transaction code (e.g. "QGH7XXXXXX") from the callback's
+  // CallbackMetadata -- only ever available once Safaricom's async callback
+  // actually lands, never from the synchronous STK query. Shown to admins
+  // as proof of payment; may stay null if the callback never arrives even
+  // though the payment itself resolved SUCCESS via polling.
+  mpesaReceipt String?
+  // Set once the gated action has actually been carried out -- kept
+  // separate from `status` so a successful payment is never silently lost,
+  // and so resolving the same payment twice is a safe no-op.
+  appliedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([checkoutRequestId])
 }
 
 model Report {

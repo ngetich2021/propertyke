@@ -7,6 +7,15 @@ import { requireUser } from "@/lib/dal";
 import { interestFormSchema, orderStatusFormSchema } from "@/lib/schemas";
 import type { ActionState } from "@/lib/schemas";
 import { sendMail } from "@/lib/mail";
+import { formatMoney } from "@/lib/format";
+import type { OrderContactMethod } from "@/app/generated/prisma/client";
+
+const CONTACT_METHOD_LABEL: Record<OrderContactMethod, string> = {
+  CALL: "Phone call",
+  SMS: "SMS / text",
+  WHATSAPP: "WhatsApp",
+  EMAIL: "Email",
+};
 
 export async function expressInterest(
   _prevState: ActionState,
@@ -17,6 +26,8 @@ export async function expressInterest(
   const parsed = interestFormSchema.safeParse({
     listingId: formData.get("listingId"),
     amount: formData.get("amount"),
+    contactPhone: formData.get("contactPhone"),
+    contactMethod: formData.get("contactMethod"),
     message: formData.get("message") || undefined,
   });
   if (!parsed.success) {
@@ -37,17 +48,28 @@ export async function expressInterest(
       buyerId: user.id,
       amount: parsed.data.amount,
       message: parsed.data.message,
+      contactPhone: parsed.data.contactPhone,
+      contactMethod: parsed.data.contactMethod,
     },
   });
 
   // Notify the owner after responding to the buyer -- email delivery is a
-  // best-effort side effect and must never make "Make order" hang.
+  // best-effort side effect and must never make "Make order" hang. Includes
+  // the buyer's contact details up front so the owner can follow up without
+  // having to log in first.
   after(() =>
     sendMail(
       listing.owner.email,
-      `New interest in "${listing.title}"`,
-      `<p>${user.name ?? user.email} is interested in your listing "${listing.title}".</p>
-       ${parsed.data.message ? `<p>Message: ${parsed.data.message}</p>` : ""}`
+      `New order on "${listing.title}"`,
+      `<p>${user.name ?? user.email} placed an order on your listing "${listing.title}".</p>
+       <ul>
+         <li>Offer amount: ${formatMoney(parsed.data.amount, listing.currency)}</li>
+         <li>Buyer email: ${user.email}</li>
+         <li>Buyer phone: ${parsed.data.contactPhone}</li>
+         <li>Preferred contact method: ${CONTACT_METHOD_LABEL[parsed.data.contactMethod]}</li>
+       </ul>
+       ${parsed.data.message ? `<p>Message: ${parsed.data.message}</p>` : ""}
+       <p>Log in to your account to review or update this order.</p>`
     )
   );
 

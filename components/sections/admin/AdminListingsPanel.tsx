@@ -42,9 +42,11 @@ export async function AdminListingsPanel({ type }: { type: ListingType }) {
         </h2>
         <DownloadExcelLink dataset={DATASET[type]} />
       </div>
-      <p className="mb-2 text-xs text-zinc-500">Click a row for full details, contact info, and edit/delete.</p>
+      <p className="mb-2 text-xs text-zinc-500">
+        Click a row for full details — address, live-until date, and edit/delete.
+      </p>
       <PaginatedTable
-        minWidth="900px"
+        minWidth="700px"
         head={
           <tr>
             <th className={`py-2 ${STICKY_COL_1}`}>#</th>
@@ -52,48 +54,40 @@ export async function AdminListingsPanel({ type }: { type: ListingType }) {
             <th className="py-2">Owner</th>
             <th className="py-2">Contact</th>
             <th className="py-2">Price</th>
-            <th className="py-2">Address</th>
-            <th className="py-2">Live until</th>
             <th className="py-2">Status</th>
             <th className="py-2">Actions</th>
           </tr>
         }
-        rows={listings.map((listing, idx) => (
-          <ClickableRow key={listing.id} listingId={listing.id}>
-            <td className={`py-2 ${STICKY_COL_1}`}>{idx + 1}</td>
-            <td className={`py-2 ${STICKY_COL_2}`}>{listing.title}</td>
-            <td className="py-2 text-zinc-500">
-              <div>{listing.owner.name ?? "—"}</div>
-              <div>{listing.owner.email}</div>
-            </td>
-            <td className="py-2 text-zinc-500">
-              {listing.owner.phone ? (
-                <a
-                  href={`tel:${listing.owner.phone}`}
-                  onClick={(e) => e.stopPropagation()}
-                  className="underline"
-                >
-                  📞 {listing.owner.phone}
-                </a>
-              ) : (
-                "—"
-              )}
-            </td>
-            <td className="py-2">{formatMoney(listing.price, listing.currency)}</td>
-            <td className="py-2 text-zinc-500">{listing.address ?? "—"}</td>
-            <td className="py-2 text-zinc-500">
-              {listing.status === "ACTIVE" && listing.endDate
-                ? new Date(listing.endDate).toLocaleDateString()
-                : "—"}
-            </td>
-            <td className="py-2">
-              <StatusBadge status={listing.status} />
-            </td>
-            <td className="py-2" onClick={(e) => e.stopPropagation()}>
-              <ListingStatusForm listingId={listing.id} currentStatus={listing.status} />
-            </td>
-          </ClickableRow>
-        ))}
+        rows={listings.map((listing, idx) => ({
+          searchText: [listing.title, listing.owner.name, listing.owner.email, listing.status]
+            .filter(Boolean)
+            .join(" "),
+          node: (
+            <ClickableRow key={listing.id} listingId={listing.id}>
+              <td className={`py-2 ${STICKY_COL_1}`}>{idx + 1}</td>
+              <td className={`py-2 ${STICKY_COL_2}`}>{listing.title}</td>
+              <td className="max-w-35 truncate py-2 text-zinc-500">
+                {listing.owner.name ?? listing.owner.email}
+              </td>
+              <td className="py-2 text-zinc-500">
+                {listing.owner.phone ? (
+                  <a href={`tel:${listing.owner.phone}`} className="underline">
+                    📞 {listing.owner.phone}
+                  </a>
+                ) : (
+                  "—"
+                )}
+              </td>
+              <td className="py-2">{formatMoney(listing.price, listing.currency)}</td>
+              <td className="py-2">
+                <StatusBadge status={listing.status} />
+              </td>
+              <td className="py-2">
+                <ListingStatusForm listingId={listing.id} currentStatus={listing.status} />
+              </td>
+            </ClickableRow>
+          ),
+        }))}
       />
     </div>
   );

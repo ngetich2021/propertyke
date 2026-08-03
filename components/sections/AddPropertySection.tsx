@@ -30,7 +30,11 @@ export async function AddPropertySection() {
         )}
       </div>
 
-      <AddPropertyToggle disabled={!user.phone} />
+      <AddPropertyToggle
+        disabled={!user.phone}
+        hasBusinessName={!!user.businessName}
+        defaultMpesaPhone={user.phone}
+      />
 
       <PaginatedTable
         minWidth="600px"
@@ -45,20 +49,23 @@ export async function AddPropertySection() {
             <th className="py-2">Status</th>
           </tr>
         }
-        rows={listings.map((l, idx) => (
-          <ClickableRow key={l.id} listingId={l.id}>
-            <td className={`py-2 ${STICKY_COL_1}`}>{idx + 1}</td>
-            <td className={`py-2 ${STICKY_COL_2}`}>{l.title}</td>
-            <td className="py-2">{l.type}</td>
-            <td className="py-2">{formatMoney(l.price, l.currency)}</td>
-            <td className="py-2 text-zinc-500">
-              {l.status === "ACTIVE" && l.endDate ? new Date(l.endDate).toLocaleDateString() : "—"}
-            </td>
-            <td className="py-2">
-              <StatusBadge status={l.status} />
-            </td>
-          </ClickableRow>
-        ))}
+        rows={listings.map((l, idx) => ({
+          searchText: [l.title, l.type, l.status].filter(Boolean).join(" "),
+          node: (
+            <ClickableRow key={l.id} listingId={l.id}>
+              <td className={`py-2 ${STICKY_COL_1}`}>{idx + 1}</td>
+              <td className={`py-2 ${STICKY_COL_2}`}>{l.title}</td>
+              <td className="py-2">{l.type}</td>
+              <td className="py-2">{formatMoney(l.price, l.currency)}</td>
+              <td className="py-2 text-zinc-500">
+                {l.status === "ACTIVE" && l.endDate ? new Date(l.endDate).toLocaleDateString() : "—"}
+              </td>
+              <td className="py-2">
+                <StatusBadge status={l.status} />
+              </td>
+            </ClickableRow>
+          ),
+        }))}
       />
     </div>
   );

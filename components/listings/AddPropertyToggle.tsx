@@ -2,12 +2,21 @@
 
 import { useState } from "react";
 import { ListingForm } from "@/components/listings/ListingForm";
+import { Modal } from "@/components/ui/Modal";
 
-export function AddPropertyToggle({ disabled }: { disabled?: boolean }) {
+export function AddPropertyToggle({
+  disabled,
+  hasBusinessName,
+  defaultMpesaPhone,
+}: {
+  disabled?: boolean;
+  hasBusinessName?: boolean;
+  defaultMpesaPhone?: string | null;
+}) {
   const [open, setOpen] = useState(false);
 
-  if (!open) {
-    return (
+  return (
+    <>
       <button
         onClick={() => setOpen(true)}
         disabled={disabled}
@@ -15,15 +24,15 @@ export function AddPropertyToggle({ disabled }: { disabled?: boolean }) {
       >
         + Add property
       </button>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-2">
-      <ListingForm />
-      <button onClick={() => setOpen(false)} className="w-fit text-xs text-zinc-500 underline">
-        Cancel
-      </button>
-    </div>
+      {open && (
+        <Modal title="Add a property, land, or rental" onClose={() => setOpen(false)}>
+          <ListingForm
+            hasBusinessName={hasBusinessName}
+            defaultMpesaPhone={defaultMpesaPhone}
+            onCreated={() => setOpen(false)}
+          />
+        </Modal>
+      )}
+    </>
   );
 }

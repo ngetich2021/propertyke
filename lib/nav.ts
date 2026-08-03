@@ -24,7 +24,8 @@ export type AdminSectionKey =
   | "lands"
   | "properties"
   | "housetolet"
-  | "reports";
+  | "reports"
+  | "orders";
 
 export const BASE_TABS: { key: Tab; label: string }[] = [
   { key: "lands", label: "Lands" },
@@ -50,6 +51,7 @@ export const ADMIN_SECTIONS: { key: AdminSectionKey; label: string }[] = [
   { key: "properties", label: "properties" },
   { key: "housetolet", label: "housetolet" },
   { key: "reports", label: "reports" },
+  { key: "orders", label: "orders" },
 ];
 
 export function isTab(value: string | undefined): value is Tab {

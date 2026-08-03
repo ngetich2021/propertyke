@@ -1,5 +1,9 @@
+import Image from "next/image";
+import Link from "next/link";
 import type { Session } from "next-auth";
 import { AuthButton } from "./AuthButton";
+import { InstallAppButton } from "./InstallAppButton";
+import { ThemeToggle } from "./ThemeToggle";
 import { HeroAdSlot } from "@/components/ads/HeroAdSlot";
 
 // Ad fetching lives entirely in HeroAdSlot (client-side) now, not here --
@@ -12,10 +16,18 @@ export async function AppHeader({ session }: { session: Session | null }) {
   return (
     <header className="border-b border-zinc-200 dark:border-zinc-800">
       <div className="mx-auto flex max-w-5xl flex-col gap-3 px-4 py-4">
-        <HeroAdSlot />
-        <div className="flex items-center justify-end">
-          <AuthButton signedIn={!!session} />
+        <div className="flex items-center justify-between gap-4">
+          <Link href="/" className="flex items-center gap-2">
+            <Image src="/logo.png" alt="PropertyKE" width={32} height={32} className="rounded-full" priority />
+            <span className="text-lg font-semibold">PropertyKE</span>
+          </Link>
+          <div className="flex items-center gap-4">
+            <ThemeToggle />
+            <InstallAppButton />
+            <AuthButton signedIn={!!session} />
+          </div>
         </div>
+        <HeroAdSlot />
       </div>
     </header>
   );

@@ -1,24 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 import type { ReactNode } from "react";
 import { AdDetailModal } from "@/components/listings/AdDetailModal";
-import type { Ad, Listing } from "@/app/generated/prisma/client";
+import { CLICKABLE_ROW_CLASS, handleRowKeyDown, isInteractiveRowClick } from "@/lib/clickableRow";
+import type { Ad, Listing, User } from "@/app/generated/prisma/client";
 
 export function ClickableAdRow({
   ad,
   children,
 }: {
-  ad: Ad & { listing: Listing };
+  // `owner` is only present when the caller is an admin browsing every ad
+  // (see AdsPanel) -- an owner viewing their own ads already knows who
+  // posted it, so that query doesn't fetch it.
+  ad: Ad & { listing: Listing; owner?: User };
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
 
+  function handleClick(e: MouseEvent<HTMLTableRowElement>) {
+    if (isInteractiveRowClick(e)) return;
+    setOpen(true);
+  }
+
   return (
     <>
       <tr
-        onClick={() => setOpen(true)}
-        className="cursor-pointer border-t border-zinc-100 hover:bg-zinc-50 dark:border-zinc-900 dark:hover:bg-zinc-900"
+        onClick={handleClick}
+        onKeyDown={(e) => handleRowKeyDown(e, () => setOpen(true))}
+        tabIndex={0}
+        className={CLICKABLE_ROW_CLASS}
       >
         {children}
       </tr>

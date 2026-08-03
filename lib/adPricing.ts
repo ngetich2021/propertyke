@@ -1,3 +1,4 @@
+import { DEV_CHARGE_MULTIPLIER } from "@/lib/devPricing";
 import type { ListingType, AdTargetMode } from "@/app/generated/prisma/client";
 
 export const AD_BASE_DAILY_RATE = 250;
@@ -23,7 +24,8 @@ export function calculateAdDailyRate(
   targetMode: AdTargetMode
 ): number {
   const base = AD_BASE_DAILY_RATE + AD_TYPE_RATE[type] + (repeatEnabled ? AD_REPEAT_SURCHARGE : 0);
-  return targetMode === "EVERYWHERE" ? base * AD_EVERYWHERE_MULTIPLIER : base;
+  const rate = targetMode === "EVERYWHERE" ? base * AD_EVERYWHERE_MULTIPLIER : base;
+  return rate * DEV_CHARGE_MULTIPLIER;
 }
 
 // Total cost for the whole campaign: the daily rate x how many days it runs.

@@ -1,12 +1,15 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
-import { createAd, updateAd } from "@/lib/actions/ads";
+import { useActionState, useId, useMemo, useState } from "react";
+import { initiateAdPayment, updateAd } from "@/lib/actions/ads";
 import { uploadToCloudinary } from "@/lib/uploadImage";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { FieldError } from "@/components/ui/FieldError";
+import { FormErrorBanner } from "@/components/ui/FormErrorBanner";
 import { Spinner } from "@/components/ui/Spinner";
+import { MpesaPaymentGate } from "@/components/ui/MpesaPaymentGate";
 import { LocationPicker } from "@/components/listings/LocationPicker";
+import { sanitizePhoneInput } from "@/lib/phone";
 import {
   calculateAdDailyRate,
   AD_BASE_DAILY_RATE,
@@ -18,6 +21,7 @@ import { formatMoney } from "@/lib/format";
 import { parseAdMedia } from "@/lib/adMedia";
 import { checkAdEligibility } from "@/lib/adEligibility";
 import type { LatLng } from "@/lib/geolocation";
+import type { ActionState } from "@/lib/schemas";
 import type { Ad, AdTargetMode, Listing } from "@/app/generated/prisma/client";
 
 type MediaRow = {
@@ -35,6 +39,7 @@ export function AdForm({
   listings,
   ad,
   advertiser,
+  onCreated,
 }: {
   listings: Listing[];
   ad?: Ad;
@@ -43,9 +48,23 @@ export function AdForm({
   // Settings so the advertiser isn't retyping the same business name/phone
   // on every single ad. Still just a default: both fields stay editable.
   advertiser?: { businessName: string | null; phone: string | null };
+  // Called once the ad fee payment succeeds and the visitor acknowledges it
+  // -- lets the caller (a Modal) close itself.
+  onCreated?: () => void;
 }) {
+  const id = useId();
   const isEdit = !!ad;
-  const [state, action] = useActionState(isEdit ? updateAd : createAd, undefined);
+  // Dismissing a failed/cancelled payment attempt hides `state.pendingPayment`
+  // again without needing a mirrored copy of it in local state -- reset
+  // right as a fresh submission goes out so the next attempt's prompt shows.
+  const [dismissed, setDismissed] = useState(false);
+  async function submit(prevState: ActionState, formData: FormData) {
+    setDismissed(false);
+    return (isEdit ? updateAd : initiateAdPayment)(prevState, formData);
+  }
+  const [state, action] = useActionState(submit, undefined);
+  const payment = !dismissed ? state?.pendingPayment : undefined;
+  const [mpesaPhone, setMpesaPhone] = useState(advertiser?.phone ?? "");
   const [rows, setRows] = useState<MediaRow[]>(
     ad
       ? parseAdMedia(ad.media).map((m) => ({
@@ -121,20 +140,48 @@ export function AdForm({
     }
   }
 
+  if (!isEdit && payment) {
+    return (
+      <div className="flex max-w-xl flex-col gap-3">
+        {state?.notice && <p className="text-xs text-amber-600 dark:text-amber-400">{state.notice}</p>}
+        <MpesaPaymentGate
+          paymentId={payment.paymentId}
+          phone={payment.phone}
+          amount={payment.amount}
+          successMessage="Your ad has been submitted for admin review."
+          onDone={(result) => {
+            if (result === "success") {
+              onCreated?.();
+            } else {
+              setDismissed(true);
+            }
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <form action={action} className="flex max-w-xl flex-col gap-4">
+      <FormErrorBanner message={state?.error} />
       {isEdit && <input type="hidden" name="adId" value={ad.id} />}
       <div>
-        <label className="mb-1 block text-xs font-medium">Listing</label>
+        <label htmlFor={`${id}-listingId`} className="mb-1 block text-xs font-medium">
+          Listing
+        </label>
         {isEdit ? (
           <>
             <input type="hidden" name="listingId" value={listingId} />
-            <p className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+            <p
+              id={`${id}-listingId`}
+              className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400"
+            >
               {selectedListing?.title ?? "—"}
             </p>
           </>
         ) : (
           <select
+            id={`${id}-listingId`}
             name="listingId"
             value={listingId}
             onChange={(e) => handleListingChange(e.target.value)}
@@ -153,8 +200,11 @@ export function AdForm({
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="mb-1 block text-xs font-medium">Company name</label>
+          <label htmlFor={`${id}-companyName`} className="mb-1 block text-xs font-medium">
+            Company name
+          </label>
           <input
+            id={`${id}-companyName`}
             name="companyName"
             defaultValue={ad?.companyName ?? advertiser?.businessName ?? ""}
             required
@@ -164,8 +214,11 @@ export function AdForm({
           <FieldError messages={state?.fieldErrors?.companyName} />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium">Company contact</label>
+          <label htmlFor={`${id}-companyContact`} className="mb-1 block text-xs font-medium">
+            Company contact
+          </label>
           <input
+            id={`${id}-companyContact`}
             name="companyContact"
             defaultValue={ad?.companyContact ?? advertiser?.phone ?? ""}
             placeholder="Phone or email"
@@ -178,8 +231,11 @@ export function AdForm({
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-medium">Product name</label>
+        <label htmlFor={`${id}-productName`} className="mb-1 block text-xs font-medium">
+          Product name
+        </label>
         <input
+          id={`${id}-productName`}
           name="productName"
           value={productName}
           onChange={(e) => setProductName(e.target.value)}
@@ -191,8 +247,11 @@ export function AdForm({
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-medium">Product description</label>
+        <label htmlFor={`${id}-productDescription`} className="mb-1 block text-xs font-medium">
+          Product description
+        </label>
         <textarea
+          id={`${id}-productDescription`}
           name="productDescription"
           value={productDescription}
           onChange={(e) => setProductDescription(e.target.value)}
@@ -205,8 +264,11 @@ export function AdForm({
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-medium">Days to run</label>
+        <label htmlFor={`${id}-days`} className="mb-1 block text-xs font-medium">
+          Days to run
+        </label>
         <input
+          id={`${id}-days`}
           name="days"
           type="number"
           min={1}
@@ -217,9 +279,10 @@ export function AdForm({
         />
         <FieldError messages={state?.fieldErrors?.days} />
         {listingRemainingDays === 0 && (
-          <p className="mt-1 text-xs text-red-600 dark:text-red-400">
-            This listing&apos;s daily rate isn&apos;t currently paid up -- extend it in My Listings before
-            advertising it.
+          <p className="mt-1 text-xs font-medium text-red-600 dark:text-red-400">
+            {eligibility && !eligibility.eligible
+              ? eligibility.reason
+              : "This listing's daily rate isn't currently paid up -- extend it in My Listings before advertising it."}
           </p>
         )}
         {listingRemainingDays !== null && listingRemainingDays !== 0 && daysNum > listingRemainingDays && (
@@ -242,9 +305,9 @@ export function AdForm({
         </label>
         {repeatEnabled && (
           <div className="mt-2 flex items-center gap-2 text-xs">
-            <label htmlFor="repeatCount">Repeat this many times a day:</label>
+            <label htmlFor={`${id}-repeatCount`}>Repeat this many times a day:</label>
             <input
-              id="repeatCount"
+              id={`${id}-repeatCount`}
               name="repeatCount"
               type="number"
               min={1}
@@ -260,8 +323,8 @@ export function AdForm({
         </p>
       </div>
 
-      <div>
-        <label className="mb-1 block text-xs font-medium">Target audience</label>
+      <fieldset>
+        <legend className="mb-1 block text-xs font-medium">Target audience</legend>
         <div className="flex gap-4 text-sm">
           <label className="flex items-center gap-1.5">
             <input
@@ -288,9 +351,9 @@ export function AdForm({
           <div className="mt-2 flex flex-col gap-2">
             <LocationPicker value={targetLocation} onChange={setTargetLocation} />
             <div className="flex items-center gap-2 text-xs">
-              <label htmlFor="targetRadiusKm">Radius (km):</label>
+              <label htmlFor={`${id}-targetRadiusKm`}>Radius (km):</label>
               <input
-                id="targetRadiusKm"
+                id={`${id}-targetRadiusKm`}
                 type="number"
                 min={1}
                 step="any"
@@ -308,7 +371,7 @@ export function AdForm({
             )}
           </div>
         )}
-      </div>
+      </fieldset>
 
       <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm dark:border-zinc-800 dark:bg-zinc-900">
         <p className="font-medium">
@@ -325,9 +388,9 @@ export function AdForm({
         )}
       </div>
 
-      <div>
+      <fieldset>
         <div className="mb-1 flex items-center justify-between">
-          <label className="block text-xs font-medium">Media (YouTube link or upload)</label>
+          <legend className="block text-xs font-medium">Media (YouTube link or upload)</legend>
           <button
             type="button"
             onClick={() => setRows((prev) => [...prev, newRow()])}
@@ -340,6 +403,7 @@ export function AdForm({
           {rows.map((row) => (
             <div key={row.id} className="flex items-center gap-2">
               <select
+                aria-label="Media type"
                 value={row.type}
                 onChange={(e) =>
                   updateRow(row.id, {
@@ -355,6 +419,7 @@ export function AdForm({
 
               {row.type === "youtube" ? (
                 <input
+                  aria-label="YouTube URL"
                   value={row.value}
                   onChange={(e) => updateRow(row.id, { value: e.target.value })}
                   placeholder="https://www.youtube.com/watch?v=..."
@@ -363,6 +428,7 @@ export function AdForm({
               ) : (
                 <div className="flex flex-1 items-center gap-2">
                   <input
+                    aria-label="Upload media file"
                     type="file"
                     accept="image/*,video/*"
                     onChange={(e) => handleUpload(row.id, e.target.files?.[0])}
@@ -397,23 +463,44 @@ export function AdForm({
           ))}
         </div>
         <FieldError messages={state?.fieldErrors?.mediaUrl} />
-      </div>
+      </fieldset>
+
+      {!isEdit && (
+        <div>
+          <label htmlFor={`${id}-mpesaPhone`} className="mb-1 block text-xs font-medium">
+            M-Pesa phone number
+          </label>
+          <input
+            id={`${id}-mpesaPhone`}
+            name="mpesaPhone"
+            type="tel"
+            value={mpesaPhone}
+            onChange={(e) => setMpesaPhone(sanitizePhoneInput(e.target.value))}
+            placeholder="e.g. 0712345678"
+            required
+            className="w-full rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          />
+          <p className="mt-1 text-xs text-zinc-500">
+            You&apos;ll get an M-Pesa prompt here for the ad fee -- it airs only once that&apos;s paid.
+          </p>
+          <FieldError messages={state?.fieldErrors?.mpesaPhone} />
+        </div>
+      )}
 
       {anyUploading && (
         <p className="text-xs text-amber-600 dark:text-amber-400">
           Wait for the upload to finish before submitting.
         </p>
       )}
-      <SubmitButton pendingLabel="Submitting…" disabled={anyUploading}>
-        {isEdit ? "Save changes" : "Advertise"}
+      <SubmitButton
+        pendingLabel={isEdit ? "Saving…" : "Sending M-Pesa prompt…"}
+        disabled={anyUploading || listingRemainingDays === 0}
+      >
+        {isEdit ? "Save changes" : `Pay ${formatMoney(total)} & advertise`}
       </SubmitButton>
-      {state?.error && <p className="text-xs text-red-600 dark:text-red-400">{state.error}</p>}
       {state?.success && (
-        <p className="text-xs text-green-600 dark:text-green-400">
-          {isEdit ? "Saved. Your ad has been sent back for admin review." : "Ad submitted for review."}
-        </p>
+        <p className="text-xs text-green-600 dark:text-green-400">Saved. Your ad has been sent back for admin review.</p>
       )}
-      {state?.notice && <p className="text-xs text-amber-600 dark:text-amber-400">{state.notice}</p>}
     </form>
   );
 }

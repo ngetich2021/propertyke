@@ -6,6 +6,7 @@ CREATE TABLE "User" (
     "emailVerified" DATETIME,
     "image" TEXT,
     "phone" TEXT,
+    "businessName" TEXT,
     "role" TEXT NOT NULL DEFAULT 'USER',
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL
@@ -61,6 +62,11 @@ CREATE TABLE "Listing" (
     "acreage" REAL,
     "rentPerMonth" REAL,
     "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "days" INTEGER NOT NULL DEFAULT 30,
+    "feeAmount" REAL,
+    "startDate" DATETIME,
+    "endDate" DATETIME,
+    "expiryNotifiedAt" DATETIME,
     "ownerId" TEXT NOT NULL,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
@@ -75,6 +81,8 @@ CREATE TABLE "Order" (
     "amount" REAL NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'PENDING',
     "message" TEXT,
+    "contactPhone" TEXT NOT NULL,
+    "contactMethod" TEXT NOT NULL DEFAULT 'CALL',
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
     CONSTRAINT "Order_listingId_fkey" FOREIGN KEY ("listingId") REFERENCES "Listing" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
@@ -87,6 +95,7 @@ CREATE TABLE "Ad" (
     "listingId" TEXT NOT NULL,
     "ownerId" TEXT NOT NULL,
     "amount" REAL NOT NULL,
+    "days" INTEGER NOT NULL DEFAULT 1,
     "companyName" TEXT,
     "productName" TEXT,
     "productDescription" TEXT,
@@ -102,10 +111,30 @@ CREATE TABLE "Ad" (
     "status" TEXT NOT NULL DEFAULT 'PENDING',
     "startDate" DATETIME,
     "endDate" DATETIME,
+    "expiryNotifiedAt" DATETIME,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
     CONSTRAINT "Ad_listingId_fkey" FOREIGN KEY ("listingId") REFERENCES "Listing" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "Ad_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "Payment" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "purpose" TEXT NOT NULL,
+    "amount" REAL NOT NULL,
+    "phone" TEXT NOT NULL,
+    "payload" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "merchantRequestId" TEXT,
+    "checkoutRequestId" TEXT,
+    "resultDesc" TEXT,
+    "mpesaReceipt" TEXT,
+    "appliedAt" DATETIME,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "Payment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -153,6 +182,12 @@ CREATE INDEX "Ad_listingId_idx" ON "Ad"("listingId");
 
 -- CreateIndex
 CREATE INDEX "Ad_ownerId_idx" ON "Ad"("ownerId");
+
+-- CreateIndex
+CREATE INDEX "Payment_userId_idx" ON "Payment"("userId");
+
+-- CreateIndex
+CREATE INDEX "Payment_checkoutRequestId_idx" ON "Payment"("checkoutRequestId");
 
 -- CreateIndex
 CREATE INDEX "Report_listingId_idx" ON "Report"("listingId");

@@ -1,18 +1,23 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useId, useState } from "react";
 import { updateAdStatus } from "@/lib/actions/ads";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import type { AdStatus } from "@/app/generated/prisma/client";
 
 export function AdStatusForm({ adId, status }: { adId: string; status: AdStatus }) {
+  const id = useId();
   const [, action] = useActionState(updateAdStatus, undefined);
   const [note, setNote] = useState("");
 
   return (
     <form action={action} className="flex flex-col gap-2">
       <input type="hidden" name="adId" value={adId} />
+      <label htmlFor={`${id}-adminNote`} className="sr-only">
+        Note for the advertiser
+      </label>
       <textarea
+        id={`${id}-adminNote`}
         name="adminNote"
         value={note}
         onChange={(e) => setNote(e.target.value)}
@@ -28,7 +33,7 @@ export function AdStatusForm({ adId, status }: { adId: string; status: AdStatus 
               name="status"
               value="ACTIVE"
               pendingLabel="…"
-              className="rounded-md bg-green-600 px-2 py-1 text-xs font-medium text-white hover:bg-green-700"
+              className="rounded-md bg-green-600 px-2 py-1 text-xs font-medium text-white hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800"
             >
               Approve
             </SubmitButton>
@@ -36,7 +41,7 @@ export function AdStatusForm({ adId, status }: { adId: string; status: AdStatus 
               name="status"
               value="REJECTED"
               pendingLabel="…"
-              className="rounded-md bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700"
+              className="rounded-md bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800"
             >
               Reject
             </SubmitButton>
@@ -50,7 +55,7 @@ export function AdStatusForm({ adId, status }: { adId: string; status: AdStatus 
             name="status"
             value="EXPIRED"
             pendingLabel="…"
-            className="rounded-md bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700"
+            className="rounded-md bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800"
           >
             Terminate
           </SubmitButton>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useId, useState } from "react";
 import { updateProfile } from "@/lib/actions/settings";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { FieldError } from "@/components/ui/FieldError";
@@ -11,6 +11,7 @@ export function SettingsSection({
 }: {
   user: { name?: string | null; email?: string | null; phone?: string | null; businessName?: string | null };
 }) {
+  const id = useId();
   const [state, action] = useActionState(updateProfile, undefined);
   const [phone, setPhone] = useState(user.phone ?? "");
 
@@ -19,8 +20,11 @@ export function SettingsSection({
       <h2 className="text-lg font-semibold">Settings</h2>
       <form action={action} className="flex flex-col gap-3">
         <div>
-          <label className="mb-1 block text-sm font-medium">Name</label>
+          <label htmlFor={`${id}-name`} className="mb-1 block text-sm font-medium">
+            Name
+          </label>
           <input
+            id={`${id}-name`}
             name="name"
             defaultValue={user.name ?? ""}
             required
@@ -29,8 +33,11 @@ export function SettingsSection({
           <FieldError messages={state?.fieldErrors?.name} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Business name</label>
+          <label htmlFor={`${id}-businessName`} className="mb-1 block text-sm font-medium">
+            Business name
+          </label>
           <input
+            id={`${id}-businessName`}
             name="businessName"
             defaultValue={user.businessName ?? ""}
             placeholder="Optional"
@@ -43,8 +50,11 @@ export function SettingsSection({
           </p>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Phone</label>
+          <label htmlFor={`${id}-phone`} className="mb-1 block text-sm font-medium">
+            Phone
+          </label>
           <input
+            id={`${id}-phone`}
             name="phone"
             type="tel"
             inputMode="tel"
@@ -56,8 +66,11 @@ export function SettingsSection({
           <FieldError messages={state?.fieldErrors?.phone} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Email</label>
+          <label htmlFor={`${id}-email`} className="mb-1 block text-sm font-medium">
+            Email
+          </label>
           <input
+            id={`${id}-email`}
             disabled
             value={user.email ?? ""}
             className="w-full rounded-md border border-zinc-200 bg-zinc-100 px-3 py-2 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900"

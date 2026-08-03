@@ -1,5 +1,7 @@
 "use client";
 
+import { useId } from "react";
+
 const PAGE_SIZE_OPTIONS = [5, 10, 25, 50];
 
 export function Pagination({
@@ -15,6 +17,7 @@ export function Pagination({
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
 }) {
+  const id = useId();
   const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
 
   return (
@@ -24,6 +27,8 @@ export function Pagination({
           <button
             key={p}
             onClick={() => onPageChange(p)}
+            aria-current={p === page ? "page" : undefined}
+            aria-label={`Page ${p}`}
             className={`min-w-6 rounded px-2 py-1 ${
               p === page
                 ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
@@ -35,9 +40,9 @@ export function Pagination({
         ))}
       </div>
       <div className="flex items-center gap-1">
-        <label htmlFor="page-size-select">Rows per page:</label>
+        <label htmlFor={`${id}-page-size-select`}>Rows per page:</label>
         <select
-          id="page-size-select"
+          id={`${id}-page-size-select`}
           value={pageSize}
           onChange={(e) => onPageSizeChange(Number(e.target.value))}
           className="rounded-md border border-zinc-300 bg-white px-1.5 py-0.5 dark:border-zinc-700 dark:bg-zinc-900"
