@@ -122,6 +122,9 @@ export const adminSectionSchema = z.enum([
   "housetolet",
   "reports",
   "orders",
+  "support",
+  "tours",
+  "health",
 ]);
 
 export const permissionsFormSchema = z.object({
@@ -165,6 +168,44 @@ export const profileFormSchema = z.object({
       .regex(/^[+\d][\d\s-]{6,19}$/, { error: "Enter a valid phone number." })
       .optional()
   ),
+});
+
+export const ticketStatusSchema = z.enum(["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"]);
+export const tourStatusSchema = z.enum(["REQUESTED", "CONFIRMED", "DECLINED", "DONE", "CANCELLED"]);
+
+export const startTicketFormSchema = z.object({
+  // `subject` is auto-derived from the first message when the chat UI
+  // doesn't collect one separately (see sendChatMessage) -- min(1), not a
+  // content-quality gate, since it can legitimately be as short as the
+  // message itself.
+  subject: z.string().trim().min(1).max(120),
+  body: z.string().trim().min(1, { error: "Say a bit more about what you need help with." }).max(2000),
+});
+
+export const ticketMessageFormSchema = z.object({
+  ticketId: z.string().min(1),
+  body: z.string().trim().min(1, { error: "Message can't be empty." }).max(2000),
+});
+
+export const assignTicketFormSchema = z.object({
+  ticketId: z.string().min(1),
+  assignedToId: z.preprocess((v) => (v === "" ? null : v), z.string().min(1).nullable()),
+});
+
+export const ticketStatusFormSchema = z.object({
+  ticketId: z.string().min(1),
+  status: ticketStatusSchema,
+});
+
+export const tourRequestFormSchema = z.object({
+  listingId: z.string().min(1),
+  preferredDate: z.string().refine((v) => !Number.isNaN(Date.parse(v)), { error: "Pick a valid date." }),
+  notes: z.preprocess((v) => (v === "" ? undefined : v), z.string().trim().max(500).optional()),
+});
+
+export const tourStatusFormSchema = z.object({
+  tourId: z.string().min(1),
+  status: tourStatusSchema,
 });
 
 export type ActionState = {

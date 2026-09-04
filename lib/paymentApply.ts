@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { queryStkPush } from "@/lib/mpesa";
 import { normalizeListingFields } from "@/lib/listingFields";
+import { logIssue } from "@/lib/systemHealth";
 import type { Payment } from "@/app/generated/prisma/client";
 
 // Deliberately NOT a "use server" module -- everything here is meant to run
@@ -43,7 +44,22 @@ export async function resolvePayment(checkoutRequestId: string, mpesaReceipt?: s
   });
   if (count === 0) return;
 
-  await applyPayment(payment.id);
+  // A payment M-Pesa already confirmed as SUCCESS but that then fails to
+  // apply is money collected with nothing delivered -- the highest-priority
+  // kind of problem this app can have, so it's always worth an immediate
+  // alert (see lib/systemHealth.ts) even though the payment itself is safe
+  // to retry (appliedAt guards against double-applying).
+  try {
+    await applyPayment(payment.id);
+  } catch (error) {
+    await logIssue(
+      "ERROR",
+      "payment-apply",
+      `Paid but failed to apply payment ${payment.id} (${payment.purpose})`,
+      error instanceof Error ? error.stack ?? error.message : String(error)
+    );
+    throw error;
+  }
 }
 
 async function applyPayment(paymentId: string): Promise<void> {

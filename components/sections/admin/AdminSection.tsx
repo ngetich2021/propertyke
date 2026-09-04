@@ -7,6 +7,9 @@ import { UsersPanel } from "./UsersPanel";
 import { AdminListingsPanel } from "./AdminListingsPanel";
 import { ReportsPanel } from "./ReportsPanel";
 import { AdminOrdersPanel } from "./AdminOrdersPanel";
+import { SupportPanel } from "./SupportPanel";
+import { ToursPanel } from "./ToursPanel";
+import { HealthPanel } from "./HealthPanel";
 
 export async function AdminSection({ section }: { section: AdminSectionKey }) {
   await requireSection(section);
@@ -30,5 +33,11 @@ export async function AdminSection({ section }: { section: AdminSectionKey }) {
       return <ReportsPanel />;
     case "orders":
       return <AdminOrdersPanel />;
+    case "support":
+      return <SupportPanel />;
+    case "tours":
+      return <ToursPanel />;
+    case "health":
+      return <HealthPanel />;
   }
 }

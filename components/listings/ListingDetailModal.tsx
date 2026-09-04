@@ -9,6 +9,7 @@ import { useFocusTrap } from "@/lib/useFocusTrap";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ListingLocationMap } from "@/components/listings/ListingLocationMap";
 import { InterestForm } from "@/components/listings/InterestForm";
+import { TourRequestToggle } from "@/components/listings/TourRequestForm";
 import { ReportForm } from "@/components/listings/ReportForm";
 import { EditListingToggle } from "@/components/listings/EditListingToggle";
 import { Spinner } from "@/components/ui/Spinner";
@@ -191,11 +192,14 @@ export function ListingDetailModal({ listingId, onClose }: { listingId: string; 
               <div className="mt-6 max-w-sm rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
                 <h2 className="mb-2 text-sm font-semibold">Interested?</h2>
                 {detail.signedIn ? (
-                  <InterestForm
-                    listingId={detail.listing.id}
-                    price={detail.listing.price}
-                    defaultPhone={detail.viewerPhone}
-                  />
+                  <div className="flex flex-col gap-3">
+                    <InterestForm
+                      listingId={detail.listing.id}
+                      price={detail.listing.price}
+                      defaultPhone={detail.viewerPhone}
+                    />
+                    <TourRequestToggle listingId={detail.listing.id} />
+                  </div>
                 ) : (
                   <p className="text-sm text-zinc-500">
                     <button

@@ -4,6 +4,7 @@ import Script from "next/script";
 import "./globals.css";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { AppNav } from "@/components/layout/AppNav";
+import { AppFooter } from "@/components/layout/AppFooter";
 import { IdleLogout } from "@/components/layout/IdleLogout";
 import { ServiceWorkerRegister } from "@/components/layout/ServiceWorkerRegister";
 import { SkipToContent } from "@/components/layout/SkipToContent";
@@ -90,6 +91,7 @@ export default async function RootLayout({
               <AppNav signedIn={!!session} />
             </div>
             {children}
+            <AppFooter />
           </LocationProvider>
         </ThemeProvider>
       </body>

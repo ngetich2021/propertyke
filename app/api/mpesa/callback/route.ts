@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolvePayment } from "@/lib/paymentApply";
+import { logIssue } from "@/lib/systemHealth";
 
 // Safaricom posts here after an STK push resolves. The body isn't signed, so
 // it's only ever used as a prompt to look the payment up and re-verify its
@@ -20,6 +21,12 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     console.error("M-Pesa callback failed", error);
+    await logIssue(
+      "ERROR",
+      "mpesa-callback",
+      "M-Pesa callback processing failed",
+      error instanceof Error ? error.stack ?? error.message : String(error)
+    );
   }
 
   return NextResponse.json({ ResultCode: 0, ResultDesc: "Accepted" });

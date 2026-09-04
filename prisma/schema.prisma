@@ -77,6 +77,34 @@ enum PaymentStatus {
   FAILED
 }
 
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketMessageSender {
+  USER
+  STAFF
+  AI
+  SYSTEM
+}
+
+enum TourStatus {
+  REQUESTED
+  CONFIRMED
+  DECLINED
+  DONE
+  CANCELLED
+}
+
+enum IssueSeverity {
+  INFO
+  WARNING
+  ERROR
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String?
@@ -115,6 +143,11 @@ model User {
   ads      Ad[]      @relation("AdOwner")
   reports  Report[]  @relation("ReportReporter")
   payments Payment[]
+
+  supportTickets   SupportTicket[]  @relation("TicketRequester")
+  assignedTickets  SupportTicket[]  @relation("TicketAssignee")
+  supportMessages  SupportMessage[] @relation("MessageSender")
+  tourRequests     TourRequest[]    @relation("TourRequester")
 }
 
 model Account {
@@ -200,6 +233,7 @@ model Listing {
   orders  Order[]
   ads     Ad[]
   reports Report[]
+  tourRequests TourRequest[]
 
   @@index([type, status])
   @@index([ownerId])
@@ -318,4 +352,87 @@ model Report {
 
   @@index([listingId])
   @@index([reporterId])
+}
+
+// A support conversation. One ticket = one thread of SupportMessage rows --
+// live chat and a "ticket" are the same object here, just viewed differently
+// (the requester sees a chat window, staff sees an inbox). See
+// lib/actions/support.ts.
+model SupportTicket {
+  id           String       @id @default(cuid())
+  userId       String
+  subject      String
+  status       TicketStatus @default(OPEN)
+  assignedToId String?
+  // First STAFF (human) reply timestamp -- an AI/SYSTEM auto-reply doesn't
+  // count, since the SLA this measures is human response time. Null means
+  // still unanswered by a human. See lib/actions/support.ts and HealthPanel.
+  firstStaffReplyAt DateTime?
+  resolvedAt        DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user       User             @relation("TicketRequester", fields: [userId], references: [id], onDelete: Cascade)
+  assignedTo User?            @relation("TicketAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  messages   SupportMessage[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([assignedToId])
+}
+
+model SupportMessage {
+  id       String              @id @default(cuid())
+  ticketId String
+  sender   TicketMessageSender
+  // Only set for sender USER/STAFF -- null for AI/SYSTEM messages, which
+  // have no User behind them.
+  senderId String?
+  body     String
+  createdAt DateTime @default(now())
+
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  senderUser User?         @relation("MessageSender", fields: [senderId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId])
+}
+
+// A buyer/renter requesting to physically view a listing. Independent of
+// SupportTicket -- this is between the requester and the listing owner (or a
+// delegated "tours" duty holder), not general support. See
+// lib/actions/tours.ts.
+model TourRequest {
+  id            String     @id @default(cuid())
+  listingId     String
+  requesterId   String
+  preferredDate DateTime
+  notes         String?
+  status        TourStatus @default(REQUESTED)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  requester User    @relation("TourRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+
+  @@index([listingId])
+  @@index([requesterId])
+  @@index([status])
+}
+
+// An entry in the system health log (see lib/systemHealth.ts). ERROR
+// severity triggers an immediate email to ADMIN_ALERT_EMAIL; everything here
+// (regardless of severity) also rolls up into the every-6h digest sent by
+// app/api/cron/health/route.ts, which stamps notifiedAt on what it reports so
+// the same event isn't summarized twice.
+model SystemIssue {
+  id         String        @id @default(cuid())
+  severity   IssueSeverity
+  source     String
+  message    String
+  detail     String?
+  notifiedAt DateTime?
+  createdAt  DateTime      @default(now())
+
+  @@index([severity])
+  @@index([createdAt])
 }
