@@ -11,9 +11,9 @@ import { ListingLocationMap } from "@/components/listings/ListingLocationMap";
 import { InterestForm } from "@/components/listings/InterestForm";
 import { ReportForm } from "@/components/listings/ReportForm";
 import { EditListingToggle } from "@/components/listings/EditListingToggle";
-import { ExtendListingForm } from "@/components/listings/ExtendListingForm";
 import { Spinner } from "@/components/ui/Spinner";
 import { RevealPhoneButton } from "@/components/ui/RevealPhoneButton";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 
 type Detail = Awaited<ReturnType<typeof getListingDetail>>;
 
@@ -146,11 +146,12 @@ export function ListingDetailModal({ listingId, onClose }: { listingId: string; 
             <p className="mt-4 whitespace-pre-line text-sm">{detail.listing.description}</p>
 
             <div className="mt-4 rounded-lg border border-zinc-200 p-3 text-sm dark:border-zinc-800">
-              <p>
+              <p className="flex items-center gap-1.5">
                 Listed by{" "}
                 <span className="font-medium">
                   {detail.listing.owner.businessName ?? detail.listing.owner.name ?? "the owner"}
                 </span>
+                <VerifiedBadge verifiedUntil={detail.listing.owner.verifiedUntil} />
               </p>
               {detail.isAdmin && !detail.isOwner && (
                 <p className="text-xs text-zinc-500">{detail.listing.owner.email}</p>
@@ -166,13 +167,6 @@ export function ListingDetailModal({ listingId, onClose }: { listingId: string; 
 
             {(detail.isOwner || detail.isAdmin) && (
               <div className="mt-4 flex flex-col gap-3">
-                {detail.listing.status === "ACTIVE" && detail.listing.endDate && (
-                  <p className="text-xs text-zinc-500">
-                    Paid through {new Date(detail.listing.endDate).toLocaleDateString()} ({detail.listing.days}{" "}
-                    day{detail.listing.days === 1 ? "" : "s"} paid) — it comes down automatically after that
-                    unless extended below.
-                  </p>
-                )}
                 <div className="flex flex-wrap items-center gap-2">
                   {(detail.isOwner || detail.isAdmin) && <EditListingToggle listing={detail.listing} />}
                   <button
@@ -190,14 +184,6 @@ export function ListingDetailModal({ listingId, onClose }: { listingId: string; 
                     )}
                   </button>
                 </div>
-                {detail.listing.status === "ACTIVE" && (
-                  <ExtendListingForm
-                    listingId={detail.listing.id}
-                    type={detail.listing.type}
-                    currency={detail.listing.currency}
-                    defaultMpesaPhone={detail.viewerPhone}
-                  />
-                )}
               </div>
             )}
 

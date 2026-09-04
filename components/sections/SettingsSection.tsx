@@ -4,12 +4,19 @@ import { useActionState, useId, useState } from "react";
 import { updateProfile } from "@/lib/actions/settings";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { FieldError } from "@/components/ui/FieldError";
+import { VerifyAccountForm } from "@/components/sections/account/VerifyAccountForm";
 import { sanitizePhoneInput } from "@/lib/phone";
 
 export function SettingsSection({
   user,
 }: {
-  user: { name?: string | null; email?: string | null; phone?: string | null; businessName?: string | null };
+  user: {
+    name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    businessName?: string | null;
+    verifiedUntil?: Date | null;
+  };
 }) {
   const id = useId();
   const [state, action] = useActionState(updateProfile, undefined);
@@ -79,6 +86,15 @@ export function SettingsSection({
         <SubmitButton pendingLabel="Saving…">Save changes</SubmitButton>
         {state?.success && <p className="text-xs text-green-600 dark:text-green-400">Saved.</p>}
       </form>
+
+      <div className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
+        <h3 className="mb-2 text-sm font-semibold">Verification</h3>
+        <p className="mb-2 text-xs text-zinc-500">
+          A verified badge shows on your listings, and lifts the 500m nearby-search limit that applies to
+          unverified accounts.
+        </p>
+        <VerifyAccountForm verifiedUntil={user.verifiedUntil} defaultMpesaPhone={user.phone} />
+      </div>
     </div>
   );
 }

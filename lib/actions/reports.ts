@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireUser, requireAdmin } from "@/lib/dal";
+import { requireUser, requireSection } from "@/lib/dal";
 import { reportFormSchema, reportStatusFormSchema } from "@/lib/schemas";
 import type { ActionState } from "@/lib/schemas";
 
@@ -36,7 +36,7 @@ export async function resolveReport(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  await requireAdmin();
+  await requireSection("reports");
 
   const parsed = reportStatusFormSchema.safeParse({
     reportId: formData.get("reportId"),

@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/lib/dal";
+import { requireSection } from "@/lib/dal";
 import type { AdminSectionKey } from "@/lib/nav";
 import { RolesPanel } from "./RolesPanel";
 import { RevenuePanel } from "./RevenuePanel";
@@ -9,7 +9,7 @@ import { ReportsPanel } from "./ReportsPanel";
 import { AdminOrdersPanel } from "./AdminOrdersPanel";
 
 export async function AdminSection({ section }: { section: AdminSectionKey }) {
-  await requireAdmin();
+  await requireSection(section);
 
   switch (section) {
     case "roles":

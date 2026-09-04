@@ -7,11 +7,9 @@ import { Modal } from "@/components/ui/Modal";
 export function AddPropertyToggle({
   disabled,
   hasBusinessName,
-  defaultMpesaPhone,
 }: {
   disabled?: boolean;
   hasBusinessName?: boolean;
-  defaultMpesaPhone?: string | null;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -26,11 +24,7 @@ export function AddPropertyToggle({
       </button>
       {open && (
         <Modal title="Add a property, land, or rental" onClose={() => setOpen(false)}>
-          <ListingForm
-            hasBusinessName={hasBusinessName}
-            defaultMpesaPhone={defaultMpesaPhone}
-            onCreated={() => setOpen(false)}
-          />
+          <ListingForm hasBusinessName={hasBusinessName} onCreated={() => setOpen(false)} />
         </Modal>
       )}
     </>

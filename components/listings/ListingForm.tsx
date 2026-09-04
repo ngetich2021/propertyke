@@ -1,17 +1,14 @@
 "use client";
 
 import { useActionState, useId, useState } from "react";
-import { initiateListingPayment, updateListing, getAddressSuggestion } from "@/lib/actions/listings";
+import { createListing, updateListing, getAddressSuggestion } from "@/lib/actions/listings";
 import { uploadImageToCloudinary } from "@/lib/uploadImage";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { FieldError } from "@/components/ui/FieldError";
 import { FormErrorBanner } from "@/components/ui/FormErrorBanner";
 import { Spinner } from "@/components/ui/Spinner";
-import { MpesaPaymentGate } from "@/components/ui/MpesaPaymentGate";
 import { LocationPicker } from "@/components/listings/LocationPicker";
-import { cloudinaryThumb, formatMoney, parseImages } from "@/lib/format";
-import { sanitizePhoneInput } from "@/lib/phone";
-import { calculateListingFee } from "@/lib/listingPricing";
+import { cloudinaryThumb, parseImages } from "@/lib/format";
 import type { LatLng } from "@/lib/geolocation";
 import type { ActionState } from "@/lib/schemas";
 import type { Listing, ListingType } from "@/app/generated/prisma/client";
@@ -19,32 +16,26 @@ import type { Listing, ListingType } from "@/app/generated/prisma/client";
 export function ListingForm({
   listing,
   hasBusinessName,
-  defaultMpesaPhone,
   onCreated,
 }: {
   listing?: Listing;
-  // Only enforced when creating (see initiateListingPayment) -- editing an
-  // existing listing never re-checks it, so it can't lock an owner out of
-  // their own content over a profile field they filled in after posting.
+  // Only enforced when creating (see createListing) -- editing an existing
+  // listing never re-checks it, so it can't lock an owner out of their own
+  // content over a profile field they filled in after posting.
   hasBusinessName?: boolean;
-  defaultMpesaPhone?: string | null;
-  // Called once the listing fee payment succeeds and the visitor
-  // acknowledges it -- lets the caller (a Modal) close itself.
+  // Called once the listing is created -- lets the caller (a Modal) close
+  // itself. Listings are free and go live immediately, so this fires right
+  // after a successful submit instead of waiting on a payment gate.
   onCreated?: () => void;
 }) {
   const id = useId();
   const isEdit = !!listing;
-  // Dismissing a failed/cancelled payment attempt hides `state.pendingPayment`
-  // again without needing a mirrored copy of it in local state -- reset
-  // right as a fresh submission goes out so the next attempt's prompt shows.
-  const [dismissed, setDismissed] = useState(false);
   async function submit(prevState: ActionState, formData: FormData) {
-    setDismissed(false);
-    return (isEdit ? updateListing : initiateListingPayment)(prevState, formData);
+    const result = await (isEdit ? updateListing : createListing)(prevState, formData);
+    if (result?.success && !isEdit) onCreated?.();
+    return result;
   }
   const [state, action] = useActionState(submit, undefined);
-  const payment = !dismissed ? state?.pendingPayment : undefined;
-  const [mpesaPhone, setMpesaPhone] = useState(defaultMpesaPhone ?? "");
   const [type, setType] = useState<ListingType>(listing?.type ?? "LAND");
   const [location, setLocation] = useState<LatLng | null>(
     listing?.latitude != null && listing?.longitude != null
@@ -54,9 +45,6 @@ export function ListingForm({
   const [images, setImages] = useState<string[]>(listing ? parseImages(listing.images) : []);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [days, setDays] = useState(String(listing?.days ?? 30));
-  const daysNum = Math.max(1, Math.trunc(Number(days)) || 1);
-  const fee = calculateListingFee(type, daysNum);
   const [address, setAddress] = useState(listing?.address ?? "");
   const [addressLoading, setAddressLoading] = useState(false);
   const requiresBusinessName = !isEdit && (type === "PROPERTY" || type === "RENTAL") && hasBusinessName === false;
@@ -92,24 +80,6 @@ export function ListingForm({
     } finally {
       setUploading(false);
     }
-  }
-
-  if (!isEdit && payment) {
-    return (
-      <MpesaPaymentGate
-        paymentId={payment.paymentId}
-        phone={payment.phone}
-        amount={payment.amount}
-        successMessage="Your listing has been submitted for admin review."
-        onDone={(result) => {
-          if (result === "success") {
-            onCreated?.();
-          } else {
-            setDismissed(true);
-          }
-        }}
-      />
-    );
   }
 
   return (
@@ -186,28 +156,6 @@ export function ListingForm({
           className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
         />
         <FieldError messages={state?.fieldErrors?.price} />
-      </div>
-
-      <div>
-        <label htmlFor={`${id}-days`} className="mb-1 block text-sm font-medium">
-          Days to keep live
-        </label>
-        <input
-          id={`${id}-days`}
-          name="days"
-          type="number"
-          min={1}
-          max={365}
-          value={days}
-          onChange={(e) => setDays(e.target.value)}
-          className="w-24 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-        />
-        <FieldError messages={state?.fieldErrors?.days} />
-        <p className="mt-1 text-xs text-zinc-500">
-          Listing fee: {formatMoney(calculateListingFee(type, 1))} / day × {daysNum} day
-          {daysNum === 1 ? "" : "s"} = {formatMoney(fee)}. Unpaid renewal after this window takes the listing
-          down automatically; you can delete it anytime or pay to extend it while it&apos;s live.
-        </p>
       </div>
 
       <div>
@@ -339,41 +287,16 @@ export function ListingForm({
         )}
       </div>
 
-      {!isEdit && (
-        <div>
-          <label htmlFor={`${id}-mpesaPhone`} className="mb-1 block text-sm font-medium">
-            M-Pesa phone number
-          </label>
-          <input
-            id={`${id}-mpesaPhone`}
-            name="mpesaPhone"
-            type="tel"
-            value={mpesaPhone}
-            onChange={(e) => setMpesaPhone(sanitizePhoneInput(e.target.value))}
-            placeholder="e.g. 0712345678"
-            required
-            className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-          />
-          <p className="mt-1 text-xs text-zinc-500">
-            You&apos;ll get an M-Pesa prompt here for the listing fee ({formatMoney(fee)}) -- the listing goes
-            live for review only once that&apos;s paid.
-          </p>
-          <FieldError messages={state?.fieldErrors?.mpesaPhone} />
-        </div>
-      )}
-
       {uploading && (
         <p className="text-xs text-amber-600 dark:text-amber-400">
           Wait for the image upload to finish before submitting.
         </p>
       )}
-      {state?.success && (
-        <p className="text-sm text-green-600 dark:text-green-400">
-          Saved. Your listing has been sent back for admin review.
-        </p>
+      {state?.success && isEdit && (
+        <p className="text-sm text-green-600 dark:text-green-400">Saved.</p>
       )}
-      <SubmitButton pendingLabel={isEdit ? "Saving…" : "Sending M-Pesa prompt…"} disabled={uploading || requiresBusinessName}>
-        {isEdit ? "Save changes" : `Pay ${formatMoney(fee)} & submit`}
+      <SubmitButton pendingLabel={isEdit ? "Saving…" : "Posting…"} disabled={uploading || requiresBusinessName}>
+        {isEdit ? "Save changes" : "Post listing"}
       </SubmitButton>
     </form>
   );

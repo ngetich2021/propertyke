@@ -100,6 +100,7 @@ export async function GET(request: NextRequest) {
         LISTING_EXTEND: "Listing addition",
         AD_CREATE: "Ads",
         AD_EXTEND: "Ads addition",
+        VERIFICATION: "Verification",
       };
       return toXlsxResponse(
         "payments.xlsx",

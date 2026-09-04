@@ -27,6 +27,7 @@ enum ListingStatus {
   REJECTED
   SOLD
   RENTED
+  INACTIVE
 }
 
 enum OrderStatus {
@@ -67,6 +68,7 @@ enum PaymentPurpose {
   LISTING_EXTEND
   AD_CREATE
   AD_EXTEND
+  VERIFICATION
 }
 
 enum PaymentStatus {
@@ -87,6 +89,21 @@ model User {
   // creating an ad, so it's only ever typed once. See SettingsSection.
   businessName  String?
   role          UserRole  @default(USER)
+  // Lets an ADMIN delegate individual admin duties (see AdminSectionKey in
+  // lib/nav.ts) to an otherwise-regular USER without making them a full
+  // admin -- e.g. a support hire who only handles "reports" and "orders".
+  // JSON-encoded string[] of AdminSectionKey values, same shortcut used for
+  // `images`/`media` elsewhere. Never includes "roles": delegating who can
+  // delegate is admin-only, to avoid a staff account escalating itself or
+  // others. Ignored entirely for role ADMIN, which already has every duty.
+  // See lib/permissions.ts.
+  permissions   String    @default("[]")
+  // Self-serve paid badge (KES/day, via M-Pesa -- see
+  // lib/verificationPricing.ts, lib/actions/verification.ts). Null/past =
+  // not verified. Also raises the radius an unverified owner's listings
+  // are limited to in nearby search (see UNVERIFIED_SEARCH_RADIUS_KM in
+  // lib/actions/listings.ts).
+  verifiedUntil DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -165,6 +182,16 @@ model Listing {
   // notifyExpiringListings to roughly once per 6h bracket instead of every
   // time a lazy maintenance sweep runs. See lib/actions/maintenance.ts.
   expiryNotifiedAt DateTime?
+  // Independent of the paid days/endDate window above: every
+  // REACTIVATION_INTERVAL_DAYS the owner must reconfirm the listing (click
+  // the emailed Activate link, or the in-app button) or it's hidden from
+  // customers (status flips to INACTIVE) until they do -- never deleted for
+  // this reason alone. See lib/listingActivation.ts and
+  // notifyReactivationNeeded/deactivateUnrenewedListings in
+  // lib/actions/maintenance.ts.
+  lastActivatedAt        DateTime?
+  activationToken        String?   @unique
+  reactivationNotifiedAt DateTime?
   ownerId          String
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt

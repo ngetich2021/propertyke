@@ -16,6 +16,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.role = user.role;
       session.user.phone = user.phone;
       session.user.businessName = user.businessName;
+      session.user.verifiedUntil = user.verifiedUntil;
+      session.user.permissions = user.permissions;
       return session;
     },
   },

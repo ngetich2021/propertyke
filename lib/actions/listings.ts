@@ -2,20 +2,20 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireUser, requireAdmin, getSession } from "@/lib/dal";
-import {
-  listingFormSchema,
-  listingStatusFormSchema,
-  extendListingFormSchema,
-  nearbySearchSchema,
-} from "@/lib/schemas";
+import { requireUser, requireSection, getSession } from "@/lib/dal";
+import { listingFormSchema, listingStatusFormSchema, nearbySearchSchema } from "@/lib/schemas";
 import type { ActionState } from "@/lib/schemas";
 import { haversineDistanceKm } from "@/lib/geo";
 import { reverseGeocode, reverseGeocodeAddress } from "@/lib/geocode";
-import { calculateListingFee } from "@/lib/listingPricing";
 import { normalizeListingFields } from "@/lib/listingFields";
-import { cleanupExpiredListings, notifyExpiringListings } from "@/lib/actions/maintenance";
-import { toMpesaPhone, initiateStkPush } from "@/lib/mpesa";
+import {
+  cleanupExpiredListings,
+  notifyExpiringListings,
+  notifyReactivationNeeded,
+  deactivateUnrenewedListings,
+} from "@/lib/actions/maintenance";
+import { reactivateListing, generateActivationToken } from "@/lib/listingActivation";
+import type { AdminSectionKey } from "@/lib/nav";
 import type { ListingType } from "@/app/generated/prisma/client";
 
 // Lets the listing form auto-fill Address from wherever was just picked on
@@ -26,19 +26,13 @@ export async function getAddressSuggestion(latitude: number, longitude: number) 
   return reverseGeocodeAddress(parsed.data.latitude, parsed.data.longitude);
 }
 
-// Validates the listing and sends the M-Pesa prompt for its hosting fee --
-// the listing itself isn't created here. It only actually gets created once
-// that payment resolves to SUCCESS (see lib/paymentApply.ts), so no listing
-// can exist without a completed payment behind it.
-export async function initiateListingPayment(
-  _prevState: ActionState,
-  formData: FormData
-): Promise<ActionState> {
+// Listings are free -- this creates the listing directly and it's live
+// immediately (ACTIVE, no admin pre-approval). Only Ads (the separate
+// "Advertise" promotion feature) cost money. Admin retains the ability to
+// reject/suspend a live listing afterward (see setListingStatus,
+// cleanupExpiredSuspensions) -- it's just not required before it's visible.
+export async function createListing(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   const user = await requireUser();
-
-  if (!user.phone) {
-    return { error: "Add a phone number in Settings before posting a listing." };
-  }
 
   const parsed = listingFormSchema.safeParse({
     type: formData.get("type"),
@@ -54,7 +48,6 @@ export async function initiateListingPayment(
     acreage: formData.get("acreage") || undefined,
     rentPerMonth: formData.get("rentPerMonth") || undefined,
     images: formData.getAll("images").filter(Boolean),
-    days: formData.get("days") || 30,
   });
 
   if (!parsed.success) {
@@ -65,36 +58,27 @@ export async function initiateListingPayment(
     return { error: "Add a business/company name in Settings before listing a property or rental." };
   }
 
-  const mpesaPhone = toMpesaPhone(String(formData.get("mpesaPhone") ?? ""));
-  if (!mpesaPhone) {
-    return { fieldErrors: { mpesaPhone: ["Enter a valid Safaricom number, e.g. 0712345678."] } };
-  }
-
-  const fee = calculateListingFee(parsed.data.type, parsed.data.days);
-
-  const stk = await initiateStkPush({
-    phone: mpesaPhone,
-    amount: fee,
-    accountReference: "Listing fee",
-    transactionDesc: "Listing fee",
-  });
-  if (!stk.ok) {
-    return { error: stk.error };
-  }
-
-  const payment = await prisma.payment.create({
+  await prisma.listing.create({
     data: {
-      userId: user.id,
-      purpose: "LISTING_CREATE",
-      amount: fee,
-      phone: mpesaPhone,
-      payload: JSON.stringify(parsed.data),
-      merchantRequestId: stk.merchantRequestId,
-      checkoutRequestId: stk.checkoutRequestId,
+      type: parsed.data.type,
+      title: parsed.data.title,
+      description: parsed.data.description,
+      price: parsed.data.price,
+      currency: parsed.data.currency,
+      address: parsed.data.address ?? null,
+      latitude: parsed.data.latitude ?? null,
+      longitude: parsed.data.longitude ?? null,
+      images: JSON.stringify(parsed.data.images),
+      ...normalizeListingFields(parsed.data.type, parsed.data),
+      status: "ACTIVE",
+      lastActivatedAt: new Date(),
+      activationToken: generateActivationToken(),
+      ownerId: user.id,
     },
   });
 
-  return { pendingPayment: { paymentId: payment.id, amount: fee, phone: mpesaPhone } };
+  revalidatePath("/");
+  return { success: true };
 }
 
 export async function updateListing(
@@ -126,7 +110,6 @@ export async function updateListing(
     acreage: formData.get("acreage") || undefined,
     rentPerMonth: formData.get("rentPerMonth") || undefined,
     images: formData.getAll("images").filter(Boolean),
-    days: formData.get("days") || existing.days,
   });
 
   if (!parsed.success) {
@@ -144,14 +127,11 @@ export async function updateListing(
       // new type. See normalizeListingFields.
       ...normalizeListingFields(parsed.data.type, parsed.data),
       images: JSON.stringify(parsed.data.images),
-      feeAmount: calculateListingFee(parsed.data.type, parsed.data.days),
-      // Editing sends it back to admin for re-review, so the paid window
-      // resets too -- it's reinstated (with a fresh startDate/endDate) the
-      // next time an admin approves it.
-      status: "PENDING",
-      startDate: null,
-      endDate: null,
-      expiryNotifiedAt: null,
+      // Editing counts as reconfirming the listing is still wanted, same
+      // spirit as the 10-day reactivation check (see lib/listingActivation.ts)
+      // -- no more admin re-review or paid-window reset since listings are
+      // free and don't need either anymore.
+      lastActivatedAt: new Date(),
     },
   });
 
@@ -172,74 +152,19 @@ export async function deleteListing(formData: FormData): Promise<void> {
   revalidatePath("/");
 }
 
-// Lets an owner (or admin) pay for more days without going back through
-// admin re-review -- nothing about the listing's content changed, just how
-// long it stays live. Sends the M-Pesa prompt for the extra days; the
-// extension itself is only applied once that payment succeeds (see
-// lib/paymentApply.ts).
-export async function initiateExtendListingPayment(
-  _prevState: ActionState,
-  formData: FormData
-): Promise<ActionState> {
-  const user = await requireUser();
-
-  const parsed = extendListingFormSchema.safeParse({
-    listingId: formData.get("listingId"),
-    extraDays: formData.get("extraDays"),
-  });
-  if (!parsed.success) {
-    return { fieldErrors: parsed.error.flatten().fieldErrors };
-  }
-
-  const listing = await prisma.listing.findUnique({ where: { id: parsed.data.listingId } });
-  if (!listing) {
-    return { error: "This listing no longer exists." };
-  }
-  if (listing.ownerId !== user.id && user.role !== "ADMIN") {
-    return { error: "You can only extend your own listings." };
-  }
-  if (listing.status !== "ACTIVE") {
-    return { error: "Only a live listing can be extended -- resubmit it for review instead." };
-  }
-
-  const mpesaPhone = toMpesaPhone(String(formData.get("mpesaPhone") ?? user.phone ?? ""));
-  if (!mpesaPhone) {
-    return { fieldErrors: { mpesaPhone: ["Enter a valid Safaricom number, e.g. 0712345678."] } };
-  }
-
-  const fee = calculateListingFee(listing.type, parsed.data.extraDays);
-
-  const stk = await initiateStkPush({
-    phone: mpesaPhone,
-    amount: fee,
-    accountReference: "Extend listing",
-    transactionDesc: "Extend listing",
-  });
-  if (!stk.ok) {
-    return { error: stk.error };
-  }
-
-  const payment = await prisma.payment.create({
-    data: {
-      userId: user.id,
-      purpose: "LISTING_EXTEND",
-      amount: fee,
-      phone: mpesaPhone,
-      payload: JSON.stringify({ listingId: listing.id, extraDays: parsed.data.extraDays }),
-      merchantRequestId: stk.merchantRequestId,
-      checkoutRequestId: stk.checkoutRequestId,
-    },
-  });
-
-  return { pendingPayment: { paymentId: payment.id, amount: fee, phone: mpesaPhone } };
-}
+// Which delegated admin duty (see lib/permissions.ts) covers a given listing
+// type -- matches DATASET in AdminListingsPanel, which splits the same three
+// types across the "lands"/"properties"/"housetolet" sections.
+const LISTING_TYPE_SECTION: Record<ListingType, AdminSectionKey> = {
+  LAND: "lands",
+  PROPERTY: "properties",
+  RENTAL: "housetolet",
+};
 
 export async function setListingStatus(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  await requireAdmin();
-
   const parsed = listingStatusFormSchema.safeParse({
     listingId: formData.get("listingId"),
     status: formData.get("status"),
@@ -248,19 +173,25 @@ export async function setListingStatus(
     return { fieldErrors: parsed.error.flatten().fieldErrors };
   }
 
+  const listing = await prisma.listing.findUnique({ where: { id: parsed.data.listingId } });
+  if (!listing) return { error: "Listing not found." };
+  await requireSection(LISTING_TYPE_SECTION[listing.type]);
+
   const data: {
     status: typeof parsed.data.status;
-    startDate?: Date;
-    endDate?: Date;
-    expiryNotifiedAt?: null;
+    lastActivatedAt?: Date;
+    reactivationNotifiedAt?: null;
+    activationToken?: string;
   } = {
     status: parsed.data.status,
   };
   if (parsed.data.status === "ACTIVE") {
-    const listing = await prisma.listing.findUnique({ where: { id: parsed.data.listingId } });
-    data.startDate = new Date();
-    data.endDate = new Date(Date.now() + (listing?.days ?? 30) * 24 * 60 * 60 * 1000);
-    data.expiryNotifiedAt = null;
+    // Admin manually reinstating a listing (e.g. after it was REJECTED) --
+    // restarts the independent 10-day reactivation clock (see
+    // lib/listingActivation.ts), same as createListing/updateListing do.
+    data.lastActivatedAt = new Date();
+    data.reactivationNotifiedAt = null;
+    if (!listing.activationToken) data.activationToken = generateActivationToken();
   }
 
   await prisma.listing.update({
@@ -275,16 +206,22 @@ export async function setListingStatus(
 export async function countListings(type: ListingType) {
   // The public browse tabs are the most common read path in the app, so
   // this doubles as the main place lapsed listings actually come down (and
-  // expiry warnings actually go out) -- see cleanupExpiredListings /
-  // notifyExpiringListings.
-  await Promise.all([cleanupExpiredListings(), notifyExpiringListings()]);
+  // expiry/reactivation warnings actually go out) -- see
+  // cleanupExpiredListings / notifyExpiringListings /
+  // notifyReactivationNeeded / deactivateUnrenewedListings.
+  await Promise.all([
+    cleanupExpiredListings(),
+    notifyExpiringListings(),
+    notifyReactivationNeeded(),
+    deactivateUnrenewedListings(),
+  ]);
   return prisma.listing.count({ where: { type, status: "ACTIVE" } });
 }
 
 // A compact projection used to preview a listing inline (e.g. from an ad)
 // without navigating away from the current page.
 export async function getListingSummary(listingId: string) {
-  return prisma.listing.findUnique({
+  const listing = await prisma.listing.findUnique({
     where: { id: listingId },
     select: {
       id: true,
@@ -304,6 +241,11 @@ export async function getListingSummary(listingId: string) {
       status: true,
     },
   });
+  // Purely a customer-facing preview (e.g. ad reveal) -- an INACTIVE listing
+  // (missed its 10-day reactivation) shouldn't surface here even if it was
+  // still ACTIVE when the ad slot was originally served.
+  if (listing?.status === "INACTIVE") return null;
+  return listing;
 }
 
 // Full listing details for the in-place detail modal (replaces navigating to
@@ -315,11 +257,19 @@ export async function getListingDetail(listingId: string) {
   const [listing, session] = await Promise.all([
     prisma.listing.findUnique({
       where: { id: listingId },
-      include: { owner: { select: { id: true, name: true, email: true, phone: true, businessName: true } } },
+      include: {
+        owner: { select: { id: true, name: true, email: true, phone: true, businessName: true, verifiedUntil: true } },
+      },
     }),
     getSession(),
   ]);
   if (!listing) return null;
+
+  const isOwner = session?.user.id === listing.ownerId;
+  const isAdmin = session?.user.role === "ADMIN";
+  // Hidden from everyone except the owner/an admin while it's missing its
+  // 10-day reactivation -- they still need to see it to reactivate it.
+  if (listing.status === "INACTIVE" && !isOwner && !isAdmin) return null;
 
   const nearbyTown =
     listing.latitude != null && listing.longitude != null
@@ -329,8 +279,8 @@ export async function getListingDetail(listingId: string) {
   return {
     listing,
     nearbyTown,
-    isOwner: session?.user.id === listing.ownerId,
-    isAdmin: session?.user.role === "ADMIN",
+    isOwner,
+    isAdmin,
     signedIn: !!session,
     // Prefills the order form's contact number so a buyer who already has a
     // phone on file isn't retyping it -- still just a starting point, the
@@ -342,6 +292,11 @@ export async function getListingDetail(listingId: string) {
 export async function getPendingListingCount(type: ListingType) {
   return prisma.listing.count({ where: { type, status: "PENDING" } });
 }
+
+// An unverified owner's listing is only discoverable in nearby search within
+// this radius, regardless of what radius the searcher picked -- see
+// getNearbyListings below. A verified owner's listing has no such cap.
+const UNVERIFIED_SEARCH_RADIUS_KM = 0.5;
 
 export async function getNearbyListings(
   type: ListingType,
@@ -359,11 +314,14 @@ export async function getNearbyListings(
       latitude: { not: null },
       longitude: { not: null },
     },
+    include: { owner: { select: { verifiedUntil: true } } },
     take: 500,
   });
 
+  const now = new Date();
+
   return listings
-    .map((listing) => ({
+    .map(({ owner, ...listing }) => ({
       ...listing,
       distanceKm: haversineDistanceKm(
         parsed.data.latitude,
@@ -371,8 +329,29 @@ export async function getNearbyListings(
         listing.latitude!,
         listing.longitude!
       ),
+      isOwnerVerified: !!owner.verifiedUntil && owner.verifiedUntil > now,
     }))
+    .filter((listing) => listing.isOwnerVerified || listing.distanceKm <= UNVERIFIED_SEARCH_RADIUS_KM)
     .filter((listing) => radiusKm === null || listing.distanceKm <= radiusKm)
     .sort((a, b) => a.distanceKm - b.distanceKm)
     .slice(0, 50);
+}
+
+// Owner-facing fallback for the emailed magic link (see
+// app/api/listings/activate/[token]/route.ts) -- lets a signed-in owner
+// reactivate straight from My Listings if they don't have the email handy.
+export async function activateListing(_prevState: ActionState, formData: FormData): Promise<ActionState> {
+  const user = await requireUser();
+  const listingId = String(formData.get("listingId") ?? "");
+
+  const listing = await prisma.listing.findUnique({ where: { id: listingId } });
+  if (!listing) {
+    return { error: "This listing no longer exists." };
+  }
+  if (listing.ownerId !== user.id && user.role !== "ADMIN") {
+    return { error: "You can only activate your own listings." };
+  }
+
+  await reactivateListing(listingId);
+  return { success: true };
 }

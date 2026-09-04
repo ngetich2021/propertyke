@@ -2,8 +2,66 @@ import { prisma } from "@/lib/prisma";
 import { formatMoney } from "@/lib/format";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { DownloadExcelLink } from "@/components/ui/DownloadExcelLink";
-import { PaginatedTable, STICKY_COL_1, STICKY_COL_2 } from "@/components/ui/PaginatedTable";
+import { DataTable, STICKY_COL_1, STICKY_COL_2, SortableHeader, type DataTableColumnDef } from "@/components/ui/data-table";
 import { ClickableOrderRow } from "@/components/listings/ClickableOrderRow";
+import type { Listing, Order, User } from "@/app/generated/prisma/client";
+
+type OrderRow = Order & { listing: Listing & { owner: User }; buyer: User };
+
+const STATUS_OPTIONS = [
+  { value: "PENDING", label: "Pending" },
+  { value: "UNDER_REVIEW", label: "Under review" },
+  { value: "CONFIRMED", label: "Confirmed" },
+  { value: "PAID", label: "Paid" },
+  { value: "CANCELLED", label: "Cancelled" },
+];
+
+const columns: DataTableColumnDef<OrderRow>[] = [
+  {
+    id: "#",
+    header: "#",
+    enableSorting: false,
+    meta: { headerClassName: STICKY_COL_1, cellClassName: STICKY_COL_1 },
+    cell: ({ row }) => row.getDisplayIndex() + 1,
+  },
+  {
+    id: "listing",
+    accessorFn: (row) => row.listing.title,
+    header: ({ column }) => <SortableHeader label="Listing" column={column} />,
+    meta: { headerClassName: STICKY_COL_2, cellClassName: STICKY_COL_2 },
+    cell: ({ row }) => row.original.listing.title,
+  },
+  {
+    id: "buyer",
+    accessorFn: (row) => row.buyer.name ?? row.buyer.email,
+    header: ({ column }) => <SortableHeader label="Buyer" column={column} />,
+    cell: ({ row }) => (
+      <span className="block max-w-35 truncate text-zinc-500">
+        {row.original.buyer.name ?? row.original.buyer.email}
+      </span>
+    ),
+  },
+  {
+    id: "seller",
+    accessorFn: (row) => row.listing.owner.businessName ?? row.listing.owner.name ?? row.listing.owner.email,
+    header: ({ column }) => <SortableHeader label="Seller" column={column} />,
+    cell: ({ row }) => (
+      <span className="block max-w-35 truncate text-zinc-500">
+        {row.original.listing.owner.businessName ?? row.original.listing.owner.name ?? row.original.listing.owner.email}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "amount",
+    header: ({ column }) => <SortableHeader label="Amount" column={column} />,
+    cell: ({ row }) => formatMoney(row.original.amount, row.original.listing.currency),
+  },
+  {
+    accessorKey: "status",
+    header: ({ column }) => <SortableHeader label="Status" column={column} />,
+    cell: ({ row }) => <StatusBadge status={row.original.status} />,
+  },
+];
 
 export async function AdminOrdersPanel() {
   const orders = await prisma.order.findMany({
@@ -21,21 +79,13 @@ export async function AdminOrdersPanel() {
       <p className="mb-2 text-xs text-zinc-500">
         Click a row for buyer + seller contact details and to update its status.
       </p>
-      <PaginatedTable
+      <DataTable
         minWidth="700px"
         emptyMessage="No orders yet."
-        head={
-          <tr>
-            <th className={`py-2 ${STICKY_COL_1}`}>#</th>
-            <th className={`py-2 ${STICKY_COL_2}`}>Listing</th>
-            <th className="py-2">Buyer</th>
-            <th className="py-2">Seller</th>
-            <th className="py-2">Amount</th>
-            <th className="py-2">Status</th>
-          </tr>
-        }
-        rows={orders.map((order, idx) => ({
-          searchText: [
+        columns={columns}
+        data={orders}
+        getRowSearchText={(order) =>
+          [
             order.listing.title,
             order.buyer.name,
             order.buyer.email,
@@ -46,24 +96,14 @@ export async function AdminOrdersPanel() {
             order.status,
           ]
             .filter(Boolean)
-            .join(" "),
-          node: (
-            <ClickableOrderRow key={order.id} order={order} role="admin">
-              <td className={`py-2 ${STICKY_COL_1}`}>{idx + 1}</td>
-              <td className={`py-2 ${STICKY_COL_2}`}>{order.listing.title}</td>
-              <td className="max-w-35 truncate py-2 text-zinc-500">
-                {order.buyer.name ?? order.buyer.email}
-              </td>
-              <td className="max-w-35 truncate py-2 text-zinc-500">
-                {order.listing.owner.businessName ?? order.listing.owner.name ?? order.listing.owner.email}
-              </td>
-              <td className="py-2">{formatMoney(order.amount, order.listing.currency)}</td>
-              <td className="py-2">
-                <StatusBadge status={order.status} />
-              </td>
-            </ClickableOrderRow>
-          ),
-        }))}
+            .join(" ")
+        }
+        statusFilter={{ columnId: "status", label: "status", options: STATUS_OPTIONS }}
+        renderRow={(order, cells) => (
+          <ClickableOrderRow key={order.id} order={order} role="admin">
+            {cells}
+          </ClickableOrderRow>
+        )}
       />
     </div>
   );

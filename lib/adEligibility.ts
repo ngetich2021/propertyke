@@ -19,7 +19,7 @@ export function checkAdEligibility(listing: ListingWindow, from: Date = new Date
   if (listing.status !== "ACTIVE") {
     return {
       eligible: false,
-      reason: "This listing must be live (approved and its daily rate paid) before you can advertise it.",
+      reason: "This listing must be live before you can advertise it.",
     };
   }
   if (listing.endDate && listing.endDate <= now) {

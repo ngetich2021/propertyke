@@ -1,8 +1,71 @@
 import { prisma } from "@/lib/prisma";
 import { RoleForm } from "./RoleForm";
+import { PermissionsForm } from "./PermissionsForm";
+import { parsePermissions } from "@/lib/permissions";
 import { DownloadExcelLink } from "@/components/ui/DownloadExcelLink";
-import { PaginatedTable, STICKY_COL_1, STICKY_COL_2 } from "@/components/ui/PaginatedTable";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
+import { DataTable, STICKY_COL_1, STICKY_COL_2, SortableHeader, type DataTableColumnDef } from "@/components/ui/data-table";
 import { ClickableUserRow } from "@/components/sections/admin/ClickableUserRow";
+import type { User } from "@/app/generated/prisma/client";
+
+const columns: DataTableColumnDef<User>[] = [
+  {
+    id: "#",
+    header: "#",
+    enableSorting: false,
+    meta: { headerClassName: STICKY_COL_1, cellClassName: STICKY_COL_1 },
+    cell: ({ row }) => row.getDisplayIndex() + 1,
+  },
+  {
+    accessorKey: "name",
+    header: ({ column }) => <SortableHeader label="Name" column={column} />,
+    meta: { headerClassName: STICKY_COL_2, cellClassName: STICKY_COL_2 },
+    cell: ({ row }) => (
+      <span className="flex items-center gap-1">
+        {row.original.name ?? "—"}
+        <VerifiedBadge verifiedUntil={row.original.verifiedUntil} />
+      </span>
+    ),
+  },
+  {
+    accessorKey: "email",
+    header: ({ column }) => <SortableHeader label="Email" column={column} />,
+    cell: ({ row }) => row.original.email,
+  },
+  {
+    id: "phone",
+    header: "Phone",
+    enableSorting: false,
+    cell: ({ row }) =>
+      row.original.phone ? (
+        <a href={`tel:${row.original.phone}`} className="text-zinc-500 underline">
+          📞 {row.original.phone}
+        </a>
+      ) : (
+        <span className="text-zinc-500">—</span>
+      ),
+  },
+  {
+    accessorKey: "role",
+    header: ({ column }) => <SortableHeader label="Role" column={column} />,
+    enableSorting: true,
+    cell: ({ row }) => <RoleForm userId={row.original.id} currentRole={row.original.role} />,
+  },
+  {
+    id: "permissions",
+    header: "Delegated duties",
+    enableSorting: false,
+    cell: ({ row }) =>
+      row.original.role === "ADMIN" ? (
+        <span className="text-xs text-zinc-500">all (admin)</span>
+      ) : (
+        <PermissionsForm
+          userId={row.original.id}
+          currentPermissions={parsePermissions(row.original.permissions)}
+        />
+      ),
+  },
+];
 
 export async function RolesPanel() {
   const [users, adminCount, userCount] = await Promise.all([
@@ -22,39 +85,24 @@ export async function RolesPanel() {
         <p><span className="font-bold">{userCount}</span> users</p>
       </div>
       <p className="text-xs text-zinc-500">Click a row for full user details.</p>
-      <PaginatedTable
-        minWidth="500px"
-        head={
-          <tr>
-            <th className={`py-2 ${STICKY_COL_1}`}>#</th>
-            <th className={`py-2 ${STICKY_COL_2}`}>Name</th>
-            <th className="py-2">Email</th>
-            <th className="py-2">Phone</th>
-            <th className="py-2">Role</th>
-          </tr>
-        }
-        rows={users.map((u, idx) => ({
-          searchText: [u.name, u.email, u.phone, u.role].filter(Boolean).join(" "),
-          node: (
-            <ClickableUserRow key={u.id} user={u}>
-              <td className={`py-2 ${STICKY_COL_1}`}>{idx + 1}</td>
-              <td className={`py-2 ${STICKY_COL_2}`}>{u.name ?? "—"}</td>
-              <td className="py-2">{u.email}</td>
-              <td className="py-2 text-zinc-500">
-                {u.phone ? (
-                  <a href={`tel:${u.phone}`} className="underline">
-                    📞 {u.phone}
-                  </a>
-                ) : (
-                  "—"
-                )}
-              </td>
-              <td className="py-2">
-                <RoleForm userId={u.id} currentRole={u.role} />
-              </td>
-            </ClickableUserRow>
-          ),
-        }))}
+      <DataTable
+        minWidth="800px"
+        columns={columns}
+        data={users}
+        getRowSearchText={(u) => [u.name, u.email, u.phone, u.role].filter(Boolean).join(" ")}
+        statusFilter={{
+          columnId: "role",
+          label: "role",
+          options: [
+            { value: "USER", label: "User" },
+            { value: "ADMIN", label: "Admin" },
+          ],
+        }}
+        renderRow={(user, cells) => (
+          <ClickableUserRow key={user.id} user={user}>
+            {cells}
+          </ClickableUserRow>
+        )}
       />
     </div>
   );

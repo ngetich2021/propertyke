@@ -4,6 +4,7 @@ import type { Session } from "next-auth";
 import { AuthButton } from "./AuthButton";
 import { InstallAppButton } from "./InstallAppButton";
 import { ThemeToggle } from "./ThemeToggle";
+import { NavLinkPendingHint } from "./AppNav";
 import { HeroAdSlot } from "@/components/ads/HeroAdSlot";
 
 // Ad fetching lives entirely in HeroAdSlot (client-side) now, not here --
@@ -20,6 +21,7 @@ export async function AppHeader({ session }: { session: Session | null }) {
           <Link href="/" className="flex items-center gap-2">
             <Image src="/logo.png" alt="PropertyKE" width={32} height={32} className="rounded-full" priority />
             <span className="text-lg font-semibold">PropertyKE</span>
+            <NavLinkPendingHint />
           </Link>
           <div className="flex items-center gap-4">
             <ThemeToggle />

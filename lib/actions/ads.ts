@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireUser, requireAdmin } from "@/lib/dal";
+import { requireUser, requireSection } from "@/lib/dal";
 import { adFormSchema, adStatusFormSchema, extendAdFormSchema, deleteAdFormSchema } from "@/lib/schemas";
 import type { ActionState } from "@/lib/schemas";
 import { getYouTubeId } from "@/lib/youtube";
@@ -336,7 +336,7 @@ export async function updateAdStatus(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  await requireAdmin();
+  await requireSection("ads");
 
   const parsed = adStatusFormSchema.safeParse({
     adId: formData.get("adId"),

@@ -1,19 +1,87 @@
 import { requireUser } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 import { AddPropertyToggle } from "@/components/listings/AddPropertyToggle";
+import { ActivateListingButton } from "@/components/listings/ActivateListingButton";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { PaginatedTable, STICKY_COL_1, STICKY_COL_2 } from "@/components/ui/PaginatedTable";
+import { DataTable, STICKY_COL_1, STICKY_COL_2, SortableHeader, type DataTableColumnDef } from "@/components/ui/data-table";
 import { ClickableRow } from "@/components/ui/ClickableRow";
 import { formatMoney } from "@/lib/format";
 import {
   cleanupExpiredSuspensions,
   cleanupExpiredListings,
   notifyExpiringListings,
+  notifyReactivationNeeded,
+  deactivateUnrenewedListings,
 } from "@/lib/actions/maintenance";
+import { REACTIVATION_INTERVAL_MS } from "@/lib/listingActivation";
+import type { Listing } from "@/app/generated/prisma/client";
+
+const columns: DataTableColumnDef<Listing>[] = [
+  {
+    id: "#",
+    header: "#",
+    enableSorting: false,
+    meta: { headerClassName: STICKY_COL_1, cellClassName: STICKY_COL_1 },
+    cell: ({ row }) => row.getDisplayIndex() + 1,
+  },
+  {
+    accessorKey: "title",
+    header: ({ column }) => <SortableHeader label="Title" column={column} />,
+    meta: { headerClassName: STICKY_COL_2, cellClassName: STICKY_COL_2 },
+    cell: ({ row }) => row.original.title,
+  },
+  {
+    accessorKey: "type",
+    header: ({ column }) => <SortableHeader label="Type" column={column} />,
+    cell: ({ row }) => row.original.type,
+  },
+  {
+    accessorKey: "price",
+    header: ({ column }) => <SortableHeader label="Price" column={column} />,
+    cell: ({ row }) => formatMoney(row.original.price, row.original.currency),
+  },
+  {
+    id: "reactivateBy",
+    header: "Reactivate by",
+    enableSorting: false,
+    cell: ({ row }) => (
+      <span className="text-zinc-500">
+        {row.original.status === "ACTIVE" && row.original.lastActivatedAt
+          ? new Date(row.original.lastActivatedAt.getTime() + REACTIVATION_INTERVAL_MS).toLocaleDateString()
+          : "—"}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "status",
+    header: ({ column }) => <SortableHeader label="Status" column={column} />,
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2">
+        <StatusBadge status={row.original.status} />
+        {row.original.status === "INACTIVE" && <ActivateListingButton listingId={row.original.id} />}
+      </div>
+    ),
+  },
+];
+
+const STATUS_OPTIONS = [
+  { value: "PENDING", label: "Pending" },
+  { value: "ACTIVE", label: "Active" },
+  { value: "REJECTED", label: "Rejected" },
+  { value: "SOLD", label: "Sold" },
+  { value: "RENTED", label: "Rented" },
+  { value: "INACTIVE", label: "Inactive" },
+];
 
 export async function AddPropertySection() {
   const user = await requireUser();
-  await Promise.all([cleanupExpiredSuspensions(), cleanupExpiredListings(), notifyExpiringListings()]);
+  await Promise.all([
+    cleanupExpiredSuspensions(),
+    cleanupExpiredListings(),
+    notifyExpiringListings(),
+    notifyReactivationNeeded(),
+    deactivateUnrenewedListings(),
+  ]);
   const listings = await prisma.listing.findMany({
     where: { ownerId: user.id },
     orderBy: { createdAt: "desc" },
@@ -30,42 +98,20 @@ export async function AddPropertySection() {
         )}
       </div>
 
-      <AddPropertyToggle
-        disabled={!user.phone}
-        hasBusinessName={!!user.businessName}
-        defaultMpesaPhone={user.phone}
-      />
+      <AddPropertyToggle disabled={!user.phone} hasBusinessName={!!user.businessName} />
 
-      <PaginatedTable
+      <DataTable
         minWidth="600px"
         emptyMessage="You haven't listed anything yet."
-        head={
-          <tr>
-            <th className={`py-2 ${STICKY_COL_1}`}>#</th>
-            <th className={`py-2 ${STICKY_COL_2}`}>Title</th>
-            <th className="py-2">Type</th>
-            <th className="py-2">Price</th>
-            <th className="py-2">Live until</th>
-            <th className="py-2">Status</th>
-          </tr>
-        }
-        rows={listings.map((l, idx) => ({
-          searchText: [l.title, l.type, l.status].filter(Boolean).join(" "),
-          node: (
-            <ClickableRow key={l.id} listingId={l.id}>
-              <td className={`py-2 ${STICKY_COL_1}`}>{idx + 1}</td>
-              <td className={`py-2 ${STICKY_COL_2}`}>{l.title}</td>
-              <td className="py-2">{l.type}</td>
-              <td className="py-2">{formatMoney(l.price, l.currency)}</td>
-              <td className="py-2 text-zinc-500">
-                {l.status === "ACTIVE" && l.endDate ? new Date(l.endDate).toLocaleDateString() : "—"}
-              </td>
-              <td className="py-2">
-                <StatusBadge status={l.status} />
-              </td>
-            </ClickableRow>
-          ),
-        }))}
+        columns={columns}
+        data={listings}
+        getRowSearchText={(l) => [l.title, l.type, l.status].filter(Boolean).join(" ")}
+        statusFilter={{ columnId: "status", label: "status", options: STATUS_OPTIONS }}
+        renderRow={(listing, cells) => (
+          <ClickableRow key={listing.id} listingId={listing.id}>
+            {cells}
+          </ClickableRow>
+        )}
       />
     </div>
   );

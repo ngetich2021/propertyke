@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Download } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { detectInstallPlatform, INSTALL_INSTRUCTIONS } from "@/lib/installInstructions";
 
 // Not a standard DOM type -- Chrome/Edge/Android fire this instead of
 // letting the browser show its own install UI, so the app can offer its own
-// "Download app" affordance instead.
+// install affordance instead.
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
@@ -16,6 +17,7 @@ export function InstallAppButton() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
+  const [pending, setPending] = useState(false);
 
   useEffect(() => {
     // matchMedia doesn't exist during SSR, so this can't be a lazy useState
@@ -51,11 +53,16 @@ export function InstallAppButton() {
     // Chrome/Edge (once their own engagement heuristics are satisfied): use
     // the real native prompt.
     if (deferredPrompt) {
-      await deferredPrompt.prompt();
-      await deferredPrompt.userChoice;
-      // A prompt can only be used once -- discard it either way; a fresh
-      // one will replace it if the browser offers another later.
-      setDeferredPrompt(null);
+      setPending(true);
+      try {
+        await deferredPrompt.prompt();
+        await deferredPrompt.userChoice;
+      } finally {
+        // A prompt can only be used once -- discard it either way; a fresh
+        // one will replace it if the browser offers another later.
+        setDeferredPrompt(null);
+        setPending(false);
+      }
       return;
     }
     // Every other case (Safari, Firefox, or Chrome before it's decided to
@@ -68,9 +75,12 @@ export function InstallAppButton() {
     <>
       <button
         onClick={handleClick}
-        className="text-sm font-semibold text-blue-600 hover:underline dark:text-blue-400"
+        disabled={pending}
+        aria-label="Install app"
+        title="Install app"
+        className="flex items-center justify-center rounded-md p-1.5 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
       >
-        Download app
+        <Download size={18} />
       </button>
       {showInstructions && (
         <Modal title="Install PropertyKE" onClose={() => setShowInstructions(false)} maxWidthClassName="max-w-sm">

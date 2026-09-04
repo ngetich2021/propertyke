@@ -8,6 +8,8 @@ declare module "next-auth" {
       role: UserRole;
       phone: string | null;
       businessName: string | null;
+      verifiedUntil: Date | null;
+      permissions: string;
     } & DefaultSession["user"];
   }
 }
@@ -17,5 +19,7 @@ declare module "@auth/core/adapters" {
     role: UserRole;
     phone: string | null;
     businessName: string | null;
+    verifiedUntil: Date | null;
+    permissions: string;
   }
 }

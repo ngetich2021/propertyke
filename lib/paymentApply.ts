@@ -65,6 +65,9 @@ async function applyPayment(paymentId: string): Promise<void> {
     case "AD_EXTEND":
       await applyAdExtend(payment, data);
       break;
+    case "VERIFICATION":
+      await applyVerification(payment, data as { days: number });
+      break;
   }
 
   await prisma.payment.update({ where: { id: payment.id }, data: { appliedAt: new Date() } });
@@ -152,5 +155,21 @@ async function applyAdExtend(payment: Payment, data: { adId: string; extraDays: 
       amount: ad.amount + payment.amount,
       expiryNotifiedAt: null,
     },
+  });
+}
+
+// Grants/extends the paid verification badge (see
+// lib/verificationPricing.ts) -- stacks on top of any time still remaining
+// if already verified, otherwise starts fresh from now.
+async function applyVerification(payment: Payment, data: { days: number }) {
+  const user = await prisma.user.findUnique({ where: { id: payment.userId } });
+  if (!user) return;
+
+  const base = user.verifiedUntil && user.verifiedUntil > new Date() ? user.verifiedUntil : new Date();
+  const verifiedUntil = new Date(base.getTime() + data.days * 24 * 60 * 60 * 1000);
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { verifiedUntil },
   });
 }

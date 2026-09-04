@@ -7,6 +7,7 @@ export const listingStatusSchema = z.enum([
   "REJECTED",
   "SOLD",
   "RENTED",
+  "INACTIVE",
 ]);
 export const orderStatusSchema = z.enum(["PENDING", "UNDER_REVIEW", "CONFIRMED", "PAID", "CANCELLED"]);
 export const orderContactMethodSchema = z.enum(["CALL", "SMS", "WHATSAPP", "EMAIL"]);
@@ -33,18 +34,6 @@ export const listingFormSchema = z.object({
   acreage: optionalNumber,
   rentPerMonth: optionalNumber,
   images: z.array(z.url()).max(10).default([]),
-  days: z.preprocess(
-    (v) => Number(v),
-    z.number().int().min(1, { error: "Must run for at least 1 day." }).max(365)
-  ),
-});
-
-export const extendListingFormSchema = z.object({
-  listingId: z.string().min(1),
-  extraDays: z.preprocess(
-    (v) => Number(v),
-    z.number().int().min(1, { error: "Enter at least 1 extra day." }).max(365)
-  ),
 });
 
 export const nearbySearchSchema = z.object({
@@ -124,6 +113,22 @@ export const roleFormSchema = z.object({
   role: userRoleSchema,
 });
 
+export const adminSectionSchema = z.enum([
+  "revenue",
+  "ads",
+  "users",
+  "lands",
+  "properties",
+  "housetolet",
+  "reports",
+  "orders",
+]);
+
+export const permissionsFormSchema = z.object({
+  userId: z.string().min(1),
+  permissions: z.array(adminSectionSchema),
+});
+
 export const listingStatusFormSchema = z.object({
   listingId: z.string().min(1),
   status: listingStatusSchema,
@@ -137,6 +142,13 @@ export const reportFormSchema = z.object({
 export const reportStatusFormSchema = z.object({
   reportId: z.string().min(1),
   status: reportStatusSchema,
+});
+
+export const verificationFormSchema = z.object({
+  days: z.preprocess(
+    (v) => Number(v),
+    z.number().int().min(1, { error: "Enter at least 1 day." }).max(365)
+  ),
 });
 
 export const profileFormSchema = z.object({

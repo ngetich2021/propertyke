@@ -1,16 +1,20 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { PaginatedTable, type TableRow } from "@/components/ui/PaginatedTable";
+import { DataTable, type DataTableColumnDef } from "@/components/ui/data-table";
 
-export function UsersOfficialsTabs({
-  head,
-  userRows,
-  officialRows,
+export function UsersOfficialsTabs<TData extends { id: string }>({
+  columns,
+  userData,
+  officialData,
+  getRowSearchText,
+  renderRow,
 }: {
-  head: ReactNode;
-  userRows: TableRow[];
-  officialRows: TableRow[];
+  columns: DataTableColumnDef<TData>[];
+  userData: TData[];
+  officialData: TData[];
+  getRowSearchText: (row: TData) => string;
+  renderRow: (row: TData, cells: ReactNode) => ReactNode;
 }) {
   const [tab, setTab] = useState<"users" | "officials">("users");
 
@@ -25,7 +29,7 @@ export function UsersOfficialsTabs({
             tab === "users" ? "font-medium underline underline-offset-4" : "text-zinc-500 dark:text-zinc-400"
           }
         >
-          Users ({userRows.length})
+          Users ({userData.length})
         </button>
         <button
           role="tab"
@@ -35,13 +39,15 @@ export function UsersOfficialsTabs({
             tab === "officials" ? "font-medium underline underline-offset-4" : "text-zinc-500 dark:text-zinc-400"
           }
         >
-          Officials ({officialRows.length})
+          Officials ({officialData.length})
         </button>
       </div>
-      <PaginatedTable
+      <DataTable
         minWidth="500px"
-        head={head}
-        rows={tab === "users" ? userRows : officialRows}
+        columns={columns}
+        data={tab === "users" ? userData : officialData}
+        getRowSearchText={getRowSearchText}
+        renderRow={renderRow}
         emptyMessage={tab === "users" ? "No users yet." : "No officials yet."}
       />
     </div>
