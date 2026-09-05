@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "PropertyKE",
-    short_name: "PropertyKE",
+    name: "EstateFinderHub",
+    short_name: "EstateFinderHub",
     description: "Find and list lands, properties, and rentals in Kenya.",
     start_url: "/",
     display: "standalone",

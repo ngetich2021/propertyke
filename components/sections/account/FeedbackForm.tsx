@@ -27,7 +27,7 @@ export function FeedbackForm({ onSubmitted }: { onSubmitted?: () => void }) {
     <form action={action} className="flex flex-col gap-3">
       <input type="hidden" name="rating" value={rating || ""} />
       <div>
-        <span className="mb-1 block text-sm font-medium">How&apos;s PropertyKE working for you? (optional)</span>
+        <span className="mb-1 block text-sm font-medium">How&apos;s EstateFinderHub working for you? (optional)</span>
         <div className="flex gap-1">
           {[1, 2, 3, 4, 5].map((n) => (
             <button

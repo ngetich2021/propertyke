@@ -118,7 +118,7 @@ export function SupportButton({ contact, signedIn }: { contact: SupportContact; 
             </div>
             <p className="border-t border-zinc-200 pt-3 text-xs text-zinc-500 dark:border-zinc-800">
               Safety tip: never send a deposit or payment before viewing a property in person and
-              verifying its title/ownership. PropertyKE never asks you to pay support staff directly.
+              verifying its title/ownership. EstateFinderHub never asks you to pay support staff directly.
             </p>
           </div>
         </Modal>

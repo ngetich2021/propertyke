@@ -7,8 +7,8 @@ import { Spinner } from "@/components/ui/Spinner";
 
 const SENDER_LABEL: Record<string, string> = {
   USER: "You",
-  STAFF: "PropertyKE support",
-  AI: "PropertyKE assistant",
+  STAFF: "EstateFinderHub support",
+  AI: "EstateFinderHub assistant",
   SYSTEM: "System",
 };
 

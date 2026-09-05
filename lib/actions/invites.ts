@@ -46,9 +46,9 @@ export async function inviteStaff(_prevState: ActionState, formData: FormData): 
   const appUrl = (process.env.APP_URL ?? "").replace(/\/+$/, "");
   await sendMail(
     parsed.data.email,
-    "You've been invited to join the PropertyKE team",
+    "You've been invited to join the EstateFinderHub team",
     `<p>Hi,</p>
-     <p>${admin.name ?? "An admin"} has invited you to help run PropertyKE${
+     <p>${admin.name ?? "An admin"} has invited you to help run EstateFinderHub${
        parsed.data.role === "ADMIN" ? " as an admin" : ""
      }.</p>
      <p>Sign in with Google using <strong>${parsed.data.email}</strong>${appUrl ? ` at <a href="${appUrl}">${appUrl}</a>` : ""} to activate your access -- no separate signup needed.</p>`

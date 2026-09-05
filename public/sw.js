@@ -3,7 +3,7 @@
 // aggressive offline-first cache -- listings/ads/payments data changes too
 // often for that, so every GET is network-first and only falls back to the
 // cache (or the cached "/" shell) when the network actually fails.
-const CACHE_NAME = "propertyke-v1";
+const CACHE_NAME = "estatefinderhub-v1";
 const PRECACHE_URLS = [
   "/",
   "/icon.png",

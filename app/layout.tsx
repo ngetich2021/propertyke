@@ -45,11 +45,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PropertyKE",
+  title: "EstateFinderHub",
   description: "Find and list lands, properties, and rentals.",
   appleWebApp: {
     capable: true,
-    title: "PropertyKE",
+    title: "EstateFinderHub",
     statusBarStyle: "default",
   },
 };

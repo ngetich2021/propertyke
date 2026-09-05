@@ -83,7 +83,7 @@ export function InstallAppButton() {
         <Download size={18} />
       </button>
       {showInstructions && (
-        <Modal title="Install PropertyKE" onClose={() => setShowInstructions(false)} maxWidthClassName="max-w-sm">
+        <Modal title="Install EstateFinderHub" onClose={() => setShowInstructions(false)} maxWidthClassName="max-w-sm">
           <p className="text-sm">{INSTALL_INSTRUCTIONS[detectInstallPlatform()]}</p>
         </Modal>
       )}

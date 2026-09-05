@@ -57,9 +57,9 @@ export async function inviteTeamMember(_prevState: ActionState, formData: FormDa
   const appUrl = (process.env.APP_URL ?? "").replace(/\/+$/, "");
   await sendMail(
     parsed.data.email,
-    `${owner.name ?? "Someone"} invited you to help manage their PropertyKE account`,
+    `${owner.name ?? "Someone"} invited you to help manage their EstateFinderHub account`,
     `<p>Hi,</p>
-     <p>${owner.name ?? "A PropertyKE user"} has invited you to help manage: <strong>${dutyLabels}</strong>.</p>
+     <p>${owner.name ?? "An EstateFinderHub user"} has invited you to help manage: <strong>${dutyLabels}</strong>.</p>
      <p>Sign in with Google using <strong>${parsed.data.email}</strong>${appUrl ? ` at <a href="${appUrl}">${appUrl}</a>` : ""} to activate -- no separate signup needed. You'll keep your own account; this just adds their listings alongside yours wherever it's relevant.</p>`
   );
 

@@ -22,8 +22,8 @@ export async function AppHeader({ session }: { session: Session | null }) {
       <div className="mx-auto flex max-w-5xl flex-col gap-3 px-4 py-4">
         <div className="flex items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-2">
-            <Image src="/logo.png" alt="PropertyKE" width={32} height={32} className="rounded-full" priority />
-            <span className="text-lg font-semibold">PropertyKE</span>
+            <Image src="/logo.png" alt="EstateFinderHub" width={32} height={32} className="rounded-full" priority />
+            <span className="text-lg font-semibold">EstateFinderHub</span>
             <NavLinkPendingHint />
           </Link>
           <div className="flex items-center gap-4">

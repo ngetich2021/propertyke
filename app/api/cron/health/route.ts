@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
     const warningCount = unnotifiedIssues.filter((i) => i.severity === "WARNING").length;
 
     const html = `
-      <h2>PropertyKE system health (every 6h)</h2>
+      <h2>EstateFinderHub system health (daily)</h2>
       <p>Database: reachable, ${dbLatencyMs}ms. Total tickets ever: ${ticketTotal}.</p>
       <ul>
         <li>Gemini: ${providers.gemini ? (providers.gemini.ok ? `reachable, ${providers.gemini.latencyMs}ms` : `<strong>DOWN</strong> (${providers.gemini.detail})`) : "never checked"}</li>
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
       }
       <p style="color:#888;font-size:12px">Sent ${new Date().toISOString()}</p>`;
 
-    await sendMail(to, `[PropertyKE] System health -- ${openTickets} open, ${stuckPayments} stuck payments, ${errorCount} errors`, html);
+    await sendMail(to, `[EstateFinderHub] System health -- ${openTickets} open, ${stuckPayments} stuck payments, ${errorCount} errors`, html);
 
     if (unnotifiedIssues.length) {
       await prisma.systemIssue.updateMany({
@@ -96,8 +96,8 @@ export async function GET(request: NextRequest) {
     // log it as a SystemIssue row (the DB is what's unreachable).
     await sendMail(
       to,
-      "[PropertyKE] System health check FAILED",
-      `<p>The 6-hour health check itself failed, which likely means the database is unreachable.</p>
+      "[EstateFinderHub] System health check FAILED",
+      `<p>The daily health check itself failed, which likely means the database is unreachable.</p>
        <pre>${error instanceof Error ? error.stack ?? error.message : String(error)}</pre>`
     );
     return NextResponse.json({ error: "Health check failed" }, { status: 500 });

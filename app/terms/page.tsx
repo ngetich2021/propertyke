@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Terms & Conditions | PropertyKE",
-  description: "Terms and conditions for using PropertyKE.",
+  title: "Terms & Conditions | EstateFinderHub",
+  description: "Terms and conditions for using EstateFinderHub.",
 };
 
 const LAST_UPDATED = "4 September 2026";
@@ -20,15 +20,15 @@ export default function TermsPage() {
       </div>
 
       <p>
-        These Terms &amp; Conditions (&quot;Terms&quot;) govern your use of PropertyKE (the
+        These Terms &amp; Conditions (&quot;Terms&quot;) govern your use of EstateFinderHub (the
         &quot;Platform&quot;, &quot;we&quot;, &quot;us&quot;), a website and app for listing and
         finding land, property, and rental units in Kenya. By creating an account or using the
         Platform, you agree to these Terms. If you do not agree, do not use the Platform.
       </p>
 
-      <Section title="1. What PropertyKE is">
+      <Section title="1. What EstateFinderHub is">
         <p>
-          PropertyKE is a listings marketplace that connects property owners/agents with buyers,
+          EstateFinderHub is a listings marketplace that connects property owners/agents with buyers,
           tenants, and renters. We are <strong>not</strong> a real estate agency, broker, surveyor,
           or legal advisor, and we are not a party to any sale, purchase, or tenancy agreement made
           between users. We do not hold, transfer, or guarantee title to any land or property listed
@@ -68,14 +68,14 @@ export default function TermsPage() {
 
       <Section title="5. Do your own due diligence">
         <p className="font-medium">
-          PropertyKE does not verify land titles, ownership, or property condition. Before paying
+          EstateFinderHub does not verify land titles, ownership, or property condition. Before paying
           any deposit or money to another user:
         </p>
         <ul className="mt-2 list-disc space-y-1 pl-5">
           <li>Physically visit the property/land in person.</li>
           <li>Independently verify the title deed/ownership documents (e.g. a land registry / Ministry of Lands search).</li>
           <li>Get independent legal advice before signing any agreement or transferring funds.</li>
-          <li>Never send money to an owner, agent, or anyone claiming to be PropertyKE support/staff before completing the above. PropertyKE will never ask you to pay support staff directly.</li>
+          <li>Never send money to an owner, agent, or anyone claiming to be EstateFinderHub support/staff before completing the above. EstateFinderHub will never ask you to pay support staff directly.</li>
         </ul>
         <p className="mt-2">
           We are not responsible for losses arising from transactions, misrepresentations, or
@@ -86,7 +86,7 @@ export default function TermsPage() {
       <Section title="6. Site visit / tour scheduling">
         <p>
           The Platform may let you request a site visit for a listing. This is a scheduling
-          convenience between you and the listing owner only — PropertyKE is not present at and
+          convenience between you and the listing owner only — EstateFinderHub is not present at and
           not responsible for what happens during a visit. Take normal safety precautions (visit
           in daylight, bring a companion, share your location with someone) when meeting a stranger
           or visiting an unfamiliar site.
@@ -109,7 +109,7 @@ export default function TermsPage() {
           <li>Harassing, threatening, or defrauding other users.</li>
           <li>Scraping, reverse-engineering, or bulk-downloading Platform data without permission.</li>
           <li>Circumventing fees, security measures, or account/role restrictions.</li>
-          <li>Impersonating PropertyKE staff/support, or any other person or business.</li>
+          <li>Impersonating EstateFinderHub staff/support, or any other person or business.</li>
         </ul>
       </Section>
 
@@ -122,7 +122,7 @@ export default function TermsPage() {
 
       <Section title="10. Limitation of liability">
         <p>
-          To the maximum extent permitted by law, PropertyKE and its administrators are not liable
+          To the maximum extent permitted by law, EstateFinderHub and its administrators are not liable
           for indirect, incidental, or consequential damages arising from your use of the Platform,
           including losses from transactions between users, inaccurate listings, or service
           interruptions. The Platform is provided &quot;as is&quot; without warranties of any kind.
@@ -153,7 +153,7 @@ export default function TermsPage() {
 
       <p className="pt-4 text-xs text-zinc-500">
         <Link href="/" className="underline">
-          Back to PropertyKE
+          Back to EstateFinderHub
         </Link>
       </p>
     </main>

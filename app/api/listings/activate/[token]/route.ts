@@ -30,7 +30,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   if (!listing) {
     return page(
       "Link not found",
-      `<h1>This activation link isn't valid.</h1><p>It may have already been used, or the listing may no longer exist. <a href="/">Go to PropertyKE</a></p>`
+      `<h1>This activation link isn't valid.</h1><p>It may have already been used, or the listing may no longer exist. <a href="/">Go to EstateFinderHub</a></p>`
     );
   }
 
@@ -38,6 +38,6 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
   return page(
     "Listing activated",
-    `<h1>&ldquo;${listing.title}&rdquo; is active again.</h1><p>It's now visible to everyone. <a href="/">View it on PropertyKE</a></p>`
+    `<h1>&ldquo;${listing.title}&rdquo; is active again.</h1><p>It's now visible to everyone. <a href="/">View it on EstateFinderHub</a></p>`
   );
 }

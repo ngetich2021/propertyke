@@ -20,7 +20,7 @@ import {
 import type { ActionState } from "@/lib/schemas";
 
 const OUT_OF_HOURS_NOTICE =
-  "Thanks for reaching out to PropertyKE! We're outside our usual support hours (7am-7pm EAT) " +
+  "Thanks for reaching out to EstateFinderHub! We're outside our usual support hours (7am-7pm EAT) " +
   "right now, but an assistant reply is on the way below, and a real team member will follow up " +
   "as soon as we're back online.";
 
@@ -38,7 +38,7 @@ async function alertNeedsHuman(subject: string, lastMessage: string) {
   const appUrl = (process.env.APP_URL ?? "").replace(/\/+$/, "");
   await sendMail(
     to,
-    `[PropertyKE] Live chat needs a human: "${subject}"`,
+    `[EstateFinderHub] Live chat needs a human: "${subject}"`,
     `<p>A visitor's chat couldn't be resolved by the assistant and needs a team member.</p>
      <p><strong>Subject:</strong> ${subject}</p>
      <p><strong>Last message:</strong> ${lastMessage}</p>

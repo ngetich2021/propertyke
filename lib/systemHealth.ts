@@ -38,7 +38,7 @@ export async function logIssue(
       after(() =>
         sendMail(
           to,
-          `[PropertyKE] Issue: ${message}`,
+          `[EstateFinderHub] Issue: ${message}`,
           `<p><strong>Source:</strong> ${source}</p>
            <p><strong>Message:</strong> ${message}</p>
            ${detail ? `<pre style="white-space:pre-wrap;font-size:12px">${escapeHtml(detail)}</pre>` : ""}

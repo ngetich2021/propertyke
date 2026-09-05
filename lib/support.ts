@@ -9,7 +9,7 @@ export type SupportContact = {
   email: string | null;
 };
 
-const WHATSAPP_GREETING = "Hi PropertyKE, I need some help.";
+const WHATSAPP_GREETING = "Hi EstateFinderHub, I need some help.";
 
 // The customer-support contact shown across the app (see SupportButton) is
 // whoever the platform's original admin is -- the same account lib/auth.ts
@@ -29,7 +29,7 @@ export async function getSupportContact(): Promise<SupportContact> {
   const msisdn = admin?.phone ? toMpesaPhone(admin.phone) : null;
 
   return {
-    name: admin?.businessName ?? admin?.name ?? "PropertyKE support",
+    name: admin?.businessName ?? admin?.name ?? "EstateFinderHub support",
     whatsappUrl: msisdn ? `https://wa.me/${msisdn}?text=${encodeURIComponent(WHATSAPP_GREETING)}` : null,
     phone: admin?.phone ?? null,
     email: admin?.email ?? null,
