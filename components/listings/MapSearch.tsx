@@ -18,8 +18,8 @@ const NOUN: Record<ListingType, string> = {
 export function MapSearch({ type, count }: { type: ListingType; count: number }) {
   const { setLocation } = useLocation();
   const [point, setPoint] = useState<LatLng | null>(null);
-  const [radiusKm, setRadiusKm] = useState<number | null>(10);
-  const [radiusInput, setRadiusInput] = useState("10");
+  const [radiusKm, setRadiusKm] = useState<number | null>(1);
+  const [radiusInput, setRadiusInput] = useState("1");
   const [results, setResults] = useState<(Listing & { distanceKm: number })[] | null>(null);
   const DEFAULT_VISIBLE = 3;
   const [visibleCount, setVisibleCount] = useState(DEFAULT_VISIBLE);
@@ -122,7 +122,7 @@ export function MapSearch({ type, count }: { type: ListingType; count: number })
               step="any"
               value={radiusInput}
               onChange={(e) => handleRadiusInput(e.target.value)}
-              placeholder="10"
+              placeholder="1"
               className="w-20 rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-900"
             />
           </div>

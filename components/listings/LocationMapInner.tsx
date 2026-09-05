@@ -200,14 +200,14 @@ export function LocationMapInner({
               url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
             />
           ) : (
-            // CartoDB's "Voyager" style renders roads, streets, and place
-            // labels much more legibly than plain OSM tiles where that data
-            // exists -- same underlying OSM data, clearer cartography.
+            // CARTO's raster basemaps (formerly free/anonymous) now require
+            // an API key -- without one they just serve a watermarked
+            // "API KEY REQUIRED" placeholder tile instead of an error, which
+            // is what was actually showing here. Esri's World_Street_Map
+            // needs no key, same as the Satellite layer above.
             <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-              url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-              subdomains="abcd"
-              detectRetina
+              attribution="Tiles &copy; Esri &mdash; Source: Esri, HERE, Garmin, USGS, and the GIS community"
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
             />
           )}
           <ClickHandler onPick={setPending} />
