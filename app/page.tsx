@@ -2,6 +2,15 @@ import { ListingTypeSection } from "@/components/sections/ListingTypeSection";
 import { AccountSection } from "@/components/sections/AccountSection";
 import { isTab, isAccountTab, isAdminSection, type Tab, type AccountTab, type AdminSectionKey } from "@/lib/nav";
 
+// This route already reads cookies (auth, via AccountSection/getSession)
+// and searchParams, both of which force fully dynamic per-request
+// rendering on their own -- there's no cached HTML to go stale in the
+// first place. Set explicitly anyway as the intended ceiling: nothing
+// under this route should ever be allowed to serve data older than 10s,
+// even if a future change (e.g. adding a cached fetch()) would otherwise
+// let it.
+export const revalidate = 10;
+
 export default async function Home({
   searchParams,
 }: {

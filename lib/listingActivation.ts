@@ -3,18 +3,12 @@ import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 
-// Independent of the paid days/endDate window (see lib/actions/maintenance.ts
-// cleanupExpiredListings) -- a listing must be reconfirmed roughly this often
-// or it's hidden from customers (INACTIVE) until reactivated. Never deleted
-// for this reason alone.
-export const REACTIVATION_INTERVAL_DAYS = 10;
-export const REACTIVATION_INTERVAL_MS = REACTIVATION_INTERVAL_DAYS * 24 * 60 * 60 * 1000;
-// Same warning/renotify cadence as the existing paid-period reminder
-// (EXPIRY_WARNING_WINDOW_MS/EXPIRY_RENOTIFY_INTERVAL_MS in maintenance.ts),
-// kept as separate constants since these throttle a different field
-// (reactivationNotifiedAt, not expiryNotifiedAt).
-export const REACTIVATION_WARNING_WINDOW_MS = 24 * 60 * 60 * 1000;
-export const REACTIVATION_RENOTIFY_INTERVAL_MS = 6 * 60 * 60 * 1000;
+export {
+  REACTIVATION_INTERVAL_DAYS,
+  REACTIVATION_INTERVAL_MS,
+  REACTIVATION_WARNING_WINDOW_MS,
+  REACTIVATION_RENOTIFY_INTERVAL_MS,
+} from "@/lib/listingActivationConstants";
 
 export function generateActivationToken(): string {
   return randomBytes(32).toString("hex");

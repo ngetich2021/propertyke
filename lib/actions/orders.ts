@@ -5,6 +5,7 @@ import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/dal";
 import { hasSectionAccess } from "@/lib/permissions";
+import { canManageOwner } from "@/lib/ownerAccess";
 import { interestFormSchema, orderStatusFormSchema } from "@/lib/schemas";
 import type { ActionState } from "@/lib/schemas";
 import { sendMail } from "@/lib/mail";
@@ -96,7 +97,8 @@ export async function updateOrderStatus(formData: FormData): Promise<void> {
   const canManage =
     order.buyerId === user.id ||
     order.listing.ownerId === user.id ||
-    hasSectionAccess(user, "orders");
+    hasSectionAccess(user, "orders") ||
+    (await canManageOwner(user.id, order.listing.ownerId, "orders"));
   if (!canManage) return;
 
   await prisma.order.update({

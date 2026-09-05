@@ -1,15 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { ListingForm } from "@/components/listings/ListingForm";
+import { ListingForm, type ManagedOwner } from "@/components/listings/ListingForm";
 import { Modal } from "@/components/ui/Modal";
 
 export function AddPropertyToggle({
   disabled,
   hasBusinessName,
+  managedOwners,
 }: {
   disabled?: boolean;
   hasBusinessName?: boolean;
+  managedOwners?: ManagedOwner[];
 }) {
   const [open, setOpen] = useState(false);
 
@@ -24,7 +26,7 @@ export function AddPropertyToggle({
       </button>
       {open && (
         <Modal title="Add a property, land, or rental" onClose={() => setOpen(false)}>
-          <ListingForm hasBusinessName={hasBusinessName} onCreated={() => setOpen(false)} />
+          <ListingForm hasBusinessName={hasBusinessName} managedOwners={managedOwners} onCreated={() => setOpen(false)} />
         </Modal>
       )}
     </>

@@ -6,7 +6,7 @@ import { requireUser, requireSection, getSession } from "@/lib/dal";
 import { listingFormSchema, listingStatusFormSchema, nearbySearchSchema } from "@/lib/schemas";
 import type { ActionState } from "@/lib/schemas";
 import { haversineDistanceKm } from "@/lib/geo";
-import { reverseGeocode, reverseGeocodeAddress } from "@/lib/geocode";
+import { reverseGeocode, reverseGeocodeAddress, searchPlace } from "@/lib/geocode";
 import { normalizeListingFields } from "@/lib/listingFields";
 import {
   cleanupExpiredListings,
@@ -15,6 +15,7 @@ import {
   deactivateUnrenewedListings,
 } from "@/lib/actions/maintenance";
 import { reactivateListing, generateActivationToken } from "@/lib/listingActivation";
+import { canManageOwner } from "@/lib/ownerAccess";
 import type { AdminSectionKey } from "@/lib/nav";
 import type { ListingType } from "@/app/generated/prisma/client";
 
@@ -24,6 +25,36 @@ export async function getAddressSuggestion(latitude: number, longitude: number) 
   const parsed = nearbySearchSchema.safeParse({ latitude, longitude });
   if (!parsed.success) return null;
   return reverseGeocodeAddress(parsed.data.latitude, parsed.data.longitude);
+}
+
+// A pair of raw numbers, e.g. "1.234, 36.789" or "1.234 36.789" -- covers
+// coordinates copy-pasted from another map app (Google Maps, WhatsApp's
+// shared-location message, etc.) without requiring a particular separator.
+const COORDINATE_PAIR = /^\s*(-?\d+(?:\.\d+)?)\s*[,\s]\s*(-?\d+(?:\.\d+)?)\s*$/;
+
+export type MapLocationResult = { lat: number; lng: number; label: string | null } | { error: string };
+
+// Powers the map search box (see LocationMapInner): lets someone jump
+// straight to a location they were shared -- either as raw coordinates or as
+// a place name (e.g. "Kapsowar") -- instead of only being able to tap around
+// the map to find it.
+export async function findMapLocation(query: string): Promise<MapLocationResult> {
+  const q = query.trim();
+  if (!q) return { error: "Type coordinates or a place name." };
+
+  const coordMatch = q.match(COORDINATE_PAIR);
+  if (coordMatch) {
+    const lat = Number(coordMatch[1]);
+    const lng = Number(coordMatch[2]);
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      return { error: "Those coordinates are out of range." };
+    }
+    return { lat, lng, label: null };
+  }
+
+  const match = await searchPlace(q);
+  if (!match) return { error: `Couldn't find "${q}".` };
+  return match;
 }
 
 // Listings are free -- this creates the listing directly and it's live
@@ -54,8 +85,20 @@ export async function createListing(_prevState: ActionState, formData: FormData)
     return { fieldErrors: parsed.error.flatten().fieldErrors };
   }
 
-  if ((parsed.data.type === "PROPERTY" || parsed.data.type === "RENTAL") && !user.businessName) {
-    return { error: "Add a business/company name in Settings before listing a property or rental." };
+  // A team member (see OwnerDelegation in schema.prisma) can post a listing
+  // on the owner's behalf via an "Acting for" picker in the create form --
+  // defaults to their own account otherwise. Re-verified server-side rather
+  // than trusted from the hidden field, same as every other ownerId check
+  // in this file.
+  const actingForOwnerId = String(formData.get("actingForOwnerId") ?? "") || user.id;
+  if (actingForOwnerId !== user.id && !(await canManageOwner(user.id, actingForOwnerId, "listings"))) {
+    return { error: "You don't have access to post listings for that account." };
+  }
+  const owner = actingForOwnerId === user.id ? user : await prisma.user.findUnique({ where: { id: actingForOwnerId } });
+  if (!owner) return { error: "That account no longer exists." };
+
+  if ((parsed.data.type === "PROPERTY" || parsed.data.type === "RENTAL") && !owner.businessName) {
+    return { error: "The owner needs a business/company name in Settings before listing a property or rental." };
   }
 
   await prisma.listing.create({
@@ -73,7 +116,7 @@ export async function createListing(_prevState: ActionState, formData: FormData)
       status: "ACTIVE",
       lastActivatedAt: new Date(),
       activationToken: generateActivationToken(),
-      ownerId: user.id,
+      ownerId: owner.id,
     },
   });
 
@@ -92,7 +135,11 @@ export async function updateListing(
   if (!existing) {
     return { error: "This listing no longer exists." };
   }
-  if (existing.ownerId !== user.id && user.role !== "ADMIN") {
+  if (
+    existing.ownerId !== user.id &&
+    user.role !== "ADMIN" &&
+    !(await canManageOwner(user.id, existing.ownerId, "listings"))
+  ) {
     return { error: "You can only edit your own listings." };
   }
 
@@ -146,7 +193,12 @@ export async function deleteListing(formData: FormData): Promise<void> {
 
   const listing = await prisma.listing.findUnique({ where: { id: listingId } });
   if (!listing) return;
-  if (listing.ownerId !== user.id && user.role !== "ADMIN") return;
+  if (
+    listing.ownerId !== user.id &&
+    user.role !== "ADMIN" &&
+    !(await canManageOwner(user.id, listing.ownerId, "listings"))
+  )
+    return;
 
   await prisma.listing.delete({ where: { id: listingId } });
   revalidatePath("/");
@@ -267,9 +319,15 @@ export async function getListingDetail(listingId: string) {
 
   const isOwner = session?.user.id === listing.ownerId;
   const isAdmin = session?.user.role === "ADMIN";
-  // Hidden from everyone except the owner/an admin while it's missing its
-  // 10-day reactivation -- they still need to see it to reactivate it.
-  if (listing.status === "INACTIVE" && !isOwner && !isAdmin) return null;
+  // A team member delegated "listings" access (see OwnerDelegation) manages
+  // this listing exactly like its owner would -- edit/delete controls, no
+  // buyer-flow (Express interest/Report), reactivation visibility -- even
+  // though they're not literally `isOwner`.
+  const canManage =
+    isOwner || isAdmin || (session ? await canManageOwner(session.user.id, listing.ownerId, "listings") : false);
+  // Hidden from everyone except whoever can manage it while it's missing
+  // its 10-day reactivation -- they still need to see it to reactivate it.
+  if (listing.status === "INACTIVE" && !canManage) return null;
 
   const nearbyTown =
     listing.latitude != null && listing.longitude != null
@@ -281,6 +339,7 @@ export async function getListingDetail(listingId: string) {
     nearbyTown,
     isOwner,
     isAdmin,
+    canManage,
     signedIn: !!session,
     // Prefills the order form's contact number so a buyer who already has a
     // phone on file isn't retyping it -- still just a starting point, the
@@ -348,7 +407,11 @@ export async function activateListing(_prevState: ActionState, formData: FormDat
   if (!listing) {
     return { error: "This listing no longer exists." };
   }
-  if (listing.ownerId !== user.id && user.role !== "ADMIN") {
+  if (
+    listing.ownerId !== user.id &&
+    user.role !== "ADMIN" &&
+    !(await canManageOwner(user.id, listing.ownerId, "listings"))
+  ) {
     return { error: "You can only activate your own listings." };
   }
 

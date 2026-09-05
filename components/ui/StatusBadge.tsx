@@ -7,6 +7,8 @@ const COLORS: Record<string, string> = {
   SOLD: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
   RENTED: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
   PAID: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
+  SUCCESS: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
+  FAILED: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
   UNDER_REVIEW: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
   CONFIRMED: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
   EXPIRED: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
@@ -16,6 +18,8 @@ const COLORS: Record<string, string> = {
   ERROR: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
   WARNING: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
   INFO: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
+  ONLINE: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
+  OFFLINE: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
 };
 
 export function StatusBadge({ status }: { status: string }) {

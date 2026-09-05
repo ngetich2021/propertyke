@@ -14,6 +14,7 @@ import { calculateAdTotal } from "@/lib/adPricing";
 import { checkAdEligibility, capAdDays } from "@/lib/adEligibility";
 import { cleanupExpiredAds, notifyExpiringAds } from "@/lib/actions/maintenance";
 import { toMpesaPhone, initiateStkPush } from "@/lib/mpesa";
+import { canManageOwner } from "@/lib/ownerAccess";
 import type { ListingType } from "@/app/generated/prisma/client";
 
 // Validates the ad and sends the M-Pesa prompt for its campaign cost -- the
@@ -79,7 +80,12 @@ export async function initiateAdPayment(
   const listing = await prisma.listing.findUnique({
     where: { id: parsed.data.listingId },
   });
-  if (!listing || (listing.ownerId !== user.id && user.role !== "ADMIN")) {
+  if (
+    !listing ||
+    (listing.ownerId !== user.id &&
+      user.role !== "ADMIN" &&
+      !(await canManageOwner(user.id, listing.ownerId, "ads")))
+  ) {
     return { error: "You can only advertise your own listings." };
   }
 
@@ -122,6 +128,11 @@ export async function initiateAdPayment(
       phone: mpesaPhone,
       payload: JSON.stringify({
         listingId: listing.id,
+        // Explicit, rather than inferred from payment.userId, so a team
+        // member paying on the owner's behalf (see OwnerDelegation) still
+        // attributes the resulting ad to the actual owner -- see
+        // applyAdCreate in lib/paymentApply.ts.
+        ownerId: listing.ownerId,
         days,
         companyName: parsed.data.companyName,
         productName: parsed.data.productName,
@@ -154,7 +165,11 @@ export async function updateAd(
   if (!existing) {
     return { error: "This ad no longer exists." };
   }
-  if (existing.ownerId !== user.id && user.role !== "ADMIN") {
+  if (
+    existing.ownerId !== user.id &&
+    user.role !== "ADMIN" &&
+    !(await canManageOwner(user.id, existing.ownerId, "ads"))
+  ) {
     return { error: "You can only edit your own ads." };
   }
 
@@ -247,7 +262,7 @@ export async function deleteAd(formData: FormData): Promise<void> {
 
   const ad = await prisma.ad.findUnique({ where: { id: parsed.data.adId } });
   if (!ad) return;
-  if (ad.ownerId !== user.id && user.role !== "ADMIN") return;
+  if (ad.ownerId !== user.id && user.role !== "ADMIN" && !(await canManageOwner(user.id, ad.ownerId, "ads"))) return;
 
   await prisma.ad.delete({ where: { id: parsed.data.adId } });
   revalidatePath("/");
@@ -275,7 +290,11 @@ export async function initiateExtendAdPayment(
   if (!ad) {
     return { error: "This ad no longer exists." };
   }
-  if (ad.ownerId !== user.id && user.role !== "ADMIN") {
+  if (
+    ad.ownerId !== user.id &&
+    user.role !== "ADMIN" &&
+    !(await canManageOwner(user.id, ad.ownerId, "ads"))
+  ) {
     return { error: "You can only extend your own ads." };
   }
   if (ad.status !== "ACTIVE" && ad.status !== "EXPIRED") {
@@ -391,7 +410,13 @@ export async function updateAdStatus(
 }
 
 export async function getLiveAds(type?: ListingType, take = 5) {
-  await Promise.all([cleanupExpiredAds(), notifyExpiringAds()]);
+  // Fire-and-forget, not awaited: this runs on every single page view (the
+  // header ad slot mounts everywhere), so blocking the ads a visitor is
+  // actually waiting on behind two extra maintenance sweeps -- each its own
+  // round trip to the database -- was adding several real seconds to every
+  // page load site-wide. Still "lazy cron" (no scheduler needed), just no
+  // longer on the critical path for what the caller asked for.
+  after(() => Promise.all([cleanupExpiredAds(), notifyExpiringAds()]));
   const ads = await prisma.ad.findMany({
     where: {
       status: "ACTIVE",

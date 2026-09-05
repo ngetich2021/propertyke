@@ -2,6 +2,7 @@
 
 import { Modal } from "@/components/ui/Modal";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { RevealPhoneButton } from "@/components/ui/RevealPhoneButton";
 import type { User } from "@/app/generated/prisma/client";
 
 export function UserDetailModal({ user, onClose }: { user: User; onClose: () => void }) {
@@ -20,9 +21,7 @@ export function UserDetailModal({ user, onClose }: { user: User; onClose: () => 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Phone</p>
             {user.phone ? (
-              <a href={`tel:${user.phone}`} className="underline">
-                📞 {user.phone}
-              </a>
+              <RevealPhoneButton phone={user.phone} className="underline" />
             ) : (
               <p className="text-zinc-500">—</p>
             )}

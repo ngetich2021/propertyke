@@ -13,9 +13,12 @@ import type { LatLng } from "@/lib/geolocation";
 import type { ActionState } from "@/lib/schemas";
 import type { Listing, ListingType } from "@/app/generated/prisma/client";
 
+export type ManagedOwner = { id: string; name: string | null; businessName: string | null };
+
 export function ListingForm({
   listing,
   hasBusinessName,
+  managedOwners,
   onCreated,
 }: {
   listing?: Listing;
@@ -23,6 +26,10 @@ export function ListingForm({
   // listing never re-checks it, so it can't lock an owner out of their own
   // content over a profile field they filled in after posting.
   hasBusinessName?: boolean;
+  // Other accounts this user has been delegated "listings" access to (see
+  // OwnerDelegation) -- shown as a "Posting for" picker on create only, so
+  // a team member can post on the owner's behalf instead of their own.
+  managedOwners?: ManagedOwner[];
   // Called once the listing is created -- lets the caller (a Modal) close
   // itself. Listings are free and go live immediately, so this fires right
   // after a successful submit instead of waiting on a payment gate.
@@ -47,7 +54,11 @@ export function ListingForm({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [address, setAddress] = useState(listing?.address ?? "");
   const [addressLoading, setAddressLoading] = useState(false);
-  const requiresBusinessName = !isEdit && (type === "PROPERTY" || type === "RENTAL") && hasBusinessName === false;
+  const [actingForOwnerId, setActingForOwnerId] = useState("");
+  const selectedOwner = managedOwners?.find((o) => o.id === actingForOwnerId);
+  const effectiveHasBusinessName = selectedOwner ? !!selectedOwner.businessName : hasBusinessName;
+  const requiresBusinessName =
+    !isEdit && (type === "PROPERTY" || type === "RENTAL") && effectiveHasBusinessName === false;
 
   // Picking a point on the map already pins down where this is -- typing
   // the address out by hand right after is the same information twice, so
@@ -86,6 +97,27 @@ export function ListingForm({
     <form action={action} className="flex max-w-xl flex-col gap-4">
       <FormErrorBanner message={state?.error} />
       {isEdit && <input type="hidden" name="listingId" value={listing.id} />}
+      {!isEdit && managedOwners && managedOwners.length > 0 && (
+        <div>
+          <label htmlFor={`${id}-actingFor`} className="mb-1 block text-sm font-medium">
+            Posting for
+          </label>
+          <select
+            id={`${id}-actingFor`}
+            name="actingForOwnerId"
+            value={actingForOwnerId}
+            onChange={(e) => setActingForOwnerId(e.target.value)}
+            className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          >
+            <option value="">Myself</option>
+            {managedOwners.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.businessName ?? o.name ?? o.id}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <div>
         <label htmlFor={`${id}-type`} className="mb-1 block text-sm font-medium">
           Type

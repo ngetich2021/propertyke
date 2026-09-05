@@ -8,8 +8,10 @@ import { AppFooter } from "@/components/layout/AppFooter";
 import { IdleLogout } from "@/components/layout/IdleLogout";
 import { ServiceWorkerRegister } from "@/components/layout/ServiceWorkerRegister";
 import { SkipToContent } from "@/components/layout/SkipToContent";
+import { SupportButton } from "@/components/layout/SupportButton";
 import { ThemeProvider } from "@/components/layout/ThemeProvider";
 import { getSession } from "@/lib/dal";
+import { getSupportContact } from "@/lib/support";
 import { LocationProvider } from "@/lib/locationContext";
 
 // Applies the persisted (or system) theme's `.dark` class before hydration
@@ -65,6 +67,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await getSession();
+  const supportContact = await getSupportContact();
 
   return (
     <html
@@ -92,6 +95,7 @@ export default async function RootLayout({
             </div>
             {children}
             <AppFooter />
+            <SupportButton contact={supportContact} signedIn={!!session} />
           </LocationProvider>
         </ThemeProvider>
       </body>

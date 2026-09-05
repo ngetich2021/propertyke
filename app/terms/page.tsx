@@ -40,15 +40,13 @@ export default function TermsPage() {
         <p>
           You sign in with a Google account. You&apos;re responsible for keeping your account
           secure and for all activity under it, and for keeping your contact details (phone,
-          business name) accurate so other users and the Platform can reach you. The first account
-          ever created on a given deployment of the Platform is automatically an administrator
-          account.
+          business name) accurate so other users and the Platform can reach you.
         </p>
       </Section>
 
       <Section title="3. Listings">
         <ul className="list-disc space-y-1 pl-5">
-          <li>Posting a listing is free. Listings are reviewed and must be approved by an administrator before they appear publicly, and may be rejected or removed for inaccurate, misleading, duplicate, or prohibited content.</li>
+          <li>Posting a listing is free and it goes live immediately — no administrator approval is required first. An administrator may still reject or remove it afterward for inaccurate, misleading, duplicate, or prohibited content. (Ads — paid banner promotions — are reviewed by an administrator before they start running; see Section 4.)</li>
           <li>You must own the property/land you list, or have the legal right/authority to list and transact on it. Listing property you don&apos;t have rights to is prohibited and may be reported.</li>
           <li>You are solely responsible for the accuracy of your listing (price, location, images, description, ownership status).</li>
           <li>To keep a listing visible, owners must reconfirm (&quot;activate&quot;) it periodically via an emailed link or the in-app button; listings that lapse are hidden (not deleted) until reactivated.</li>

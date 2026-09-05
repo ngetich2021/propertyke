@@ -33,7 +33,16 @@ export function MpesaPaymentGate({
     let timer: ReturnType<typeof setTimeout> | undefined;
 
     async function poll() {
-      const result = await getPaymentStatus(paymentId);
+      let result: Awaited<ReturnType<typeof getPaymentStatus>>;
+      try {
+        result = await getPaymentStatus(paymentId);
+      } catch {
+        // A transient network blip (or a dev-server restart) shouldn't end
+        // the poll or throw an unhandled rejection -- the payment itself is
+        // still fine on M-Pesa's side either way; just try again shortly.
+        if (!cancelled) timer = setTimeout(poll, 3000);
+        return;
+      }
       if (cancelled) return;
 
       if (result.status === "SUCCESS") {

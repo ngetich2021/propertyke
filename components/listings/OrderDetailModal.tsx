@@ -4,6 +4,7 @@ import { useId } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { SubmitButton } from "@/components/ui/SubmitButton";
+import { RevealPhoneButton } from "@/components/ui/RevealPhoneButton";
 import { updateOrderStatus } from "@/lib/actions/orders";
 import { formatMoney } from "@/lib/format";
 import type { Order, Listing, User, OrderStatus } from "@/app/generated/prisma/client";
@@ -65,19 +66,13 @@ export function OrderDetailModal({
             <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-400">Seller</p>
             <p>{order.listing.owner.businessName ?? order.listing.owner.name ?? "—"}</p>
             <p className="text-zinc-500">{order.listing.owner.email}</p>
-            {order.listing.owner.phone && (
-              <a href={`tel:${order.listing.owner.phone}`} className="underline">
-                📞 {order.listing.owner.phone}
-              </a>
-            )}
+            {order.listing.owner.phone && <RevealPhoneButton phone={order.listing.owner.phone} className="underline" />}
           </div>
         )}
 
         <div className="rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
           <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-400">Contact</p>
-          <a href={`tel:${order.contactPhone}`} className="font-medium underline">
-            📞 {order.contactPhone}
-          </a>
+          <RevealPhoneButton phone={order.contactPhone} className="font-medium underline" />
           <p className="text-zinc-500">
             Prefers: {CONTACT_METHOD_LABEL[order.contactMethod] ?? order.contactMethod}
           </p>

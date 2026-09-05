@@ -10,6 +10,7 @@ declare module "next-auth" {
       businessName: string | null;
       verifiedUntil: Date | null;
       permissions: string;
+      customRole: { permissions: string } | null;
     } & DefaultSession["user"];
   }
 }
@@ -21,5 +22,6 @@ declare module "@auth/core/adapters" {
     businessName: string | null;
     verifiedUntil: Date | null;
     permissions: string;
+    roleId: string | null;
   }
 }

@@ -18,12 +18,21 @@ export function parsePermissions(permissions: string): AdminSectionKey[] {
   }
 }
 
-type PermissionUser = { role: string; permissions: string };
+type PermissionUser = {
+  role: string;
+  permissions: string;
+  // Present (possibly null) wherever a caller fetched the relation; absent
+  // callers (e.g. an assignee lookup that didn't `include` it) are treated
+  // as "no custom role", falling back to `permissions` -- see call sites.
+  customRole?: { permissions: string } | null;
+};
 
-// An ADMIN has every duty implicitly; anyone else only has whatever's been
-// explicitly delegated to them (and never "roles" -- see DELEGABLE_SECTIONS).
+// An ADMIN has every duty implicitly. Anyone else uses their assigned named
+// Role's duties if they have one, otherwise whatever's been delegated to
+// them ad hoc (and never "roles" -- see DELEGABLE_SECTIONS).
 export function getAccessibleSections(user: PermissionUser): AdminSectionKey[] {
   if (user.role === "ADMIN") return ADMIN_SECTIONS.map((s) => s.key);
+  if (user.customRole) return parsePermissions(user.customRole.permissions);
   return parsePermissions(user.permissions);
 }
 

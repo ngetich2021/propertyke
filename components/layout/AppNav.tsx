@@ -40,7 +40,10 @@ export function NavLink({
   return (
     <Link
       href={href}
-      className={`text-sm font-medium ${
+      // data-active lets ScrollableTabs find and auto-reveal the current
+      // tab without either component needing to know about the other.
+      data-active={active || undefined}
+      className={`shrink-0 text-sm font-medium whitespace-nowrap ${
         active
           ? danger
             ? "text-red-600 underline dark:text-red-400"

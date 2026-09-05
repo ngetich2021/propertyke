@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition, type FormEvent } from "react";
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
 import L, { type LeafletEvent } from "leaflet";
+import { Search } from "lucide-react";
+import { findMapLocation } from "@/lib/actions/listings";
 
 // Default Leaflet marker icons reference relative image paths that don't
 // resolve under bundlers; point them at the CDN copy instead.
@@ -82,6 +84,9 @@ export function LocationMapInner({
   // whether OSM volunteers have mapped roads there -- more reliable for
   // rural areas than the vector street style, which can render near-blank.
   const [layer, setLayer] = useState<"satellite" | "street">("satellite");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [isSearching, startSearch] = useTransition();
 
   function handleDragEnd(e: LeafletEvent) {
     const marker = e.target as L.Marker;
@@ -89,8 +94,51 @@ export function LocationMapInner({
     setPending({ lat: pos.lat, lng: pos.lng });
   }
 
+  // Lets someone jump straight to a location they were shared -- as raw
+  // coordinates (e.g. copy-pasted from a WhatsApp location share) or as a
+  // place name like "Kapsowar" -- instead of only being able to tap around
+  // the map to find it. Only moves the pending pin (see FlyToOnChange
+  // below); still requires "Confirm location" like a tap or drag would.
+  function handleSearch(e: FormEvent) {
+    e.preventDefault();
+    setSearchError(null);
+    startSearch(async () => {
+      const result = await findMapLocation(searchQuery);
+      if ("error" in result) {
+        setSearchError(result.error);
+        return;
+      }
+      setPending({ lat: result.lat, lng: result.lng });
+    });
+  }
+
   return (
     <div className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
+      <form
+        onSubmit={handleSearch}
+        className="flex items-center gap-2 border-b border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900"
+      >
+        <Search size={14} className="shrink-0 text-zinc-400" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search coordinates (1.234, 36.789) or a place name…"
+          className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-zinc-400"
+        />
+        <button
+          type="submit"
+          disabled={isSearching || !searchQuery.trim()}
+          className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium hover:bg-zinc-100 disabled:opacity-40 dark:border-zinc-700 dark:hover:bg-zinc-800"
+        >
+          {isSearching ? "Searching…" : "Go"}
+        </button>
+      </form>
+      {searchError && (
+        <p className="border-b border-zinc-200 bg-zinc-50 px-3 pb-2 text-xs text-red-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-red-400">
+          {searchError}
+        </p>
+      )}
       <div className="flex items-center justify-between gap-3 border-b border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900">
         <span className="text-xs text-zinc-500">{label}</span>
         <div className="flex items-center gap-2">

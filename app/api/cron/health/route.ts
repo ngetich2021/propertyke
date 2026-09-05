@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendMail } from "@/lib/mail";
 import { getAlertEmail } from "@/lib/systemHealth";
+import { refreshProviderHealth, getProviderHealth } from "@/lib/providerHealth";
 
 const SLA_MINUTES = 15;
 const STUCK_PAYMENT_MINUTES = 15;
@@ -27,6 +28,12 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // Refreshes ProviderHealthCheck (see lib/providerHealth.ts) so the
+    // dashboard always has a reasonably fresh snapshot without itself
+    // making live API calls on every view.
+    await refreshProviderHealth();
+
+    const dbStart = Date.now();
     const [openTickets, recentTickets, pendingTours, unnotifiedIssues, stuckPayments, ticketTotal] = await Promise.all([
       prisma.supportTicket.count({ where: { status: { in: ["OPEN", "IN_PROGRESS"] } } }),
       prisma.supportTicket.findMany({
@@ -40,6 +47,8 @@ export async function GET(request: NextRequest) {
       }),
       prisma.supportTicket.count(),
     ]);
+    const dbLatencyMs = Date.now() - dbStart;
+    const providers = await getProviderHealth();
 
     const breached = recentTickets.filter(
       (t) => ((t.firstStaffReplyAt ?? new Date()).getTime() - t.createdAt.getTime()) / 60000 > SLA_MINUTES
@@ -50,8 +59,10 @@ export async function GET(request: NextRequest) {
 
     const html = `
       <h2>PropertyKE system health (every 6h)</h2>
-      <p>Database: reachable (this query ran). Total tickets ever: ${ticketTotal}.</p>
+      <p>Database: reachable, ${dbLatencyMs}ms. Total tickets ever: ${ticketTotal}.</p>
       <ul>
+        <li>Gemini: ${providers.gemini ? (providers.gemini.ok ? `reachable, ${providers.gemini.latencyMs}ms` : `<strong>DOWN</strong> (${providers.gemini.detail})`) : "never checked"}</li>
+        <li>Groq: ${providers.groq ? (providers.groq.ok ? `reachable, ${providers.groq.latencyMs}ms` : `<strong>DOWN</strong> (${providers.groq.detail})`) : "never checked"}</li>
         <li>Open/in-progress tickets: <strong>${openTickets}</strong></li>
         <li>Tickets breaching ${SLA_MINUTES}-minute first-response SLA: <strong>${breached.length}</strong>${
       breached.length ? `<ul>${breached.map((t) => `<li>${t.subject}</li>`).join("")}</ul>` : ""

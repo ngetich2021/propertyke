@@ -2,11 +2,14 @@ import { requireUser } from "@/lib/dal";
 import { ACCOUNT_TABS, ADMIN_SECTIONS, type AccountTab, type AdminSectionKey } from "@/lib/nav";
 import { getAccessibleSections } from "@/lib/permissions";
 import { NavLink } from "@/components/layout/AppNav";
+import { ScrollableTabs } from "@/components/layout/ScrollableTabs";
 import { AccountOverview } from "@/components/sections/account/AccountOverview";
 import { OrdersSection } from "@/components/sections/OrdersSection";
 import { AdvertiseSection } from "@/components/sections/AdvertiseSection";
 import { AddPropertySection } from "@/components/sections/AddPropertySection";
+import { TeamSection } from "@/components/sections/TeamSection";
 import { SettingsSection } from "@/components/sections/SettingsSection";
+import { FeedbackSection } from "@/components/sections/FeedbackSection";
 import { AdminSection } from "@/components/sections/admin/AdminSection";
 import { getPendingAdCount } from "@/lib/actions/ads";
 import { getPendingReportCount } from "@/lib/actions/reports";
@@ -45,38 +48,42 @@ export async function AccountSection({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-4 border-b border-zinc-200 pb-3 dark:border-zinc-800">
-        <NavLink href="/?tab=account&atab=overview" active={atab === "overview"}>
-          overview
-        </NavLink>
-        {ACCOUNT_TABS.filter((t) => t.key !== "overview").map((t) => (
-          <NavLink key={t.key} href={`/?tab=account&atab=${t.key}`} active={atab === t.key}>
-            {t.label}
+      <div className="border-b border-zinc-200 pb-3 dark:border-zinc-800">
+        <ScrollableTabs>
+          <NavLink href="/?tab=account&atab=overview" active={atab === "overview"}>
+            overview
           </NavLink>
-        ))}
-        {canSeeAdmin && (
-          <NavLink
-            href={`/?tab=account&atab=admin&section=${effectiveSection}`}
-            active={atab === "admin"}
-            danger
-          >
-            admin
-          </NavLink>
-        )}
+          {ACCOUNT_TABS.filter((t) => t.key !== "overview").map((t) => (
+            <NavLink key={t.key} href={`/?tab=account&atab=${t.key}`} active={atab === t.key}>
+              {t.label}
+            </NavLink>
+          ))}
+          {canSeeAdmin && (
+            <NavLink
+              href={`/?tab=account&atab=admin&section=${effectiveSection}`}
+              active={atab === "admin"}
+              danger
+            >
+              admin
+            </NavLink>
+          )}
+        </ScrollableTabs>
       </div>
 
       {canSeeAdmin && atab === "admin" && (
-        <div className="flex flex-wrap items-center gap-4 border-b border-zinc-200 pb-3 dark:border-zinc-800">
-          {visibleSections.map((s) => (
-            <NavLink
-              key={s.key}
-              href={`/?tab=account&atab=admin&section=${s.key}`}
-              active={effectiveSection === s.key}
-            >
-              {s.label}
-              {!!counts[s.key] && ` (${counts[s.key]})`}
-            </NavLink>
-          ))}
+        <div className="border-b border-zinc-200 pb-3 dark:border-zinc-800">
+          <ScrollableTabs>
+            {visibleSections.map((s) => (
+              <NavLink
+                key={s.key}
+                href={`/?tab=account&atab=admin&section=${s.key}`}
+                active={effectiveSection === s.key}
+              >
+                {s.label}
+                {!!counts[s.key] && ` (${counts[s.key]})`}
+              </NavLink>
+            ))}
+          </ScrollableTabs>
         </div>
       )}
 
@@ -84,7 +91,9 @@ export async function AccountSection({
       {atab === "orders" && <OrdersSection />}
       {atab === "advertise" && <AdvertiseSection />}
       {atab === "add-property" && <AddPropertySection />}
+      {atab === "team" && <TeamSection />}
       {atab === "settings" && <SettingsSection user={user} />}
+      {atab === "feedback" && <FeedbackSection />}
       {atab === "admin" && canSeeAdmin && <AdminSection section={effectiveSection} />}
     </div>
   );

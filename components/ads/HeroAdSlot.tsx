@@ -30,9 +30,15 @@ export function HeroAdSlot() {
 
   useEffect(() => {
     let cancelled = false;
-    getLiveAds().then((ads) => {
-      if (!cancelled) setEverywhereAds(ads);
-    });
+    // The hero video is decorative content, not something worth surfacing an
+    // error for -- a transient network blip (or a server restart mid-request
+    // in dev) should just leave the slot showing its empty-state fallback,
+    // not throw an unhandled rejection.
+    getLiveAds()
+      .then((ads) => {
+        if (!cancelled) setEverywhereAds(ads);
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -43,12 +49,14 @@ export function HeroAdSlot() {
     // here -- just skip the lookup until one is known.
     if (!location) return;
     let cancelled = false;
-    getTargetedAd(location.lat, location.lng).then((ad) => {
-      if (cancelled) return;
-      setTargetedAd(
-        ad ? { listingId: ad.listingId, youtubeUrl: ad.youtubeUrl, repeatCount: ad.repeatCount } : null
-      );
-    });
+    getTargetedAd(location.lat, location.lng)
+      .then((ad) => {
+        if (cancelled) return;
+        setTargetedAd(
+          ad ? { listingId: ad.listingId, youtubeUrl: ad.youtubeUrl, repeatCount: ad.repeatCount } : null
+        );
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };

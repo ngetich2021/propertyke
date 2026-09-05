@@ -105,6 +105,94 @@ enum IssueSeverity {
   ERROR
 }
 
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+}
+
+// Admin-issued: invites someone (by email, no account required yet) to join
+// as staff with a given site-wide role/duty set -- the same role/roleId/
+// permissions shape as User itself (see lib/permissions.ts). Applied
+// automatically the moment that email signs in (lib/invites.ts, wired from
+// the signIn event in lib/auth.ts), whether they're brand new or already
+// have an account with some other access level.
+model StaffInvite {
+  id          String       @id @default(cuid())
+  email       String
+  invitedById String
+  role        UserRole     @default(USER)
+  roleId      String?
+  permissions String       @default("[]")
+  status      InviteStatus @default(PENDING)
+  token       String       @unique
+  createdAt   DateTime     @default(now())
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+
+  invitedBy  User  @relation("StaffInviteSender", fields: [invitedById], references: [id], onDelete: Cascade)
+  customRole Role? @relation(fields: [roleId], references: [id], onDelete: SetNull)
+
+  @@index([email])
+}
+
+// An individual (non-admin) account's own "Team": invites someone (by
+// email) to help manage THAT ACCOUNT's own listings/ads/orders -- a
+// delegation scoped to one owner's resources, entirely independent of the
+// site-wide admin Role/StaffInvite system above. Accepted the same way as a
+// StaffInvite (see lib/invites.ts), becoming an OwnerDelegation row.
+model OwnerInvite {
+  id      String @id @default(cuid())
+  email   String
+  ownerId String
+  // JSON-encoded string[] of OwnerDutyKey ("listings" | "ads" | "orders") --
+  // see lib/ownerDuties.ts.
+  scopes     String       @default("[]")
+  status     InviteStatus @default(PENDING)
+  token      String       @unique
+  createdAt  DateTime     @default(now())
+  acceptedAt DateTime?
+  revokedAt  DateTime?
+
+  owner User @relation("OwnerInviteSender", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([ownerId])
+}
+
+// An accepted OwnerInvite: `manager` may act on `owner`'s own listings/ads/
+// orders within `scopes`, without being granted any site-wide admin access
+// at all -- a completely separate axis from Role/customRole/permissions.
+model OwnerDelegation {
+  id        String   @id @default(cuid())
+  ownerId   String
+  managerId String
+  scopes    String   @default("[]")
+  createdAt DateTime @default(now())
+
+  owner   User @relation("DelegationOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  manager User @relation("DelegationManager", fields: [managerId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerId, managerId])
+  @@index([managerId])
+}
+
+// A named, reusable duty set an ADMIN creates once and assigns to any
+// number of USER accounts (see roleId/customRole on User), as an
+// alternative to delegating ad-hoc permissions one person at a time.
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  // JSON-encoded string[] of AdminSectionKey values -- same shape and same
+  // DELEGABLE_SECTIONS restriction (never "roles") as User.permissions.
+  permissions String   @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users        User[]
+  staffInvites StaffInvite[]
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String?
@@ -123,9 +211,19 @@ model User {
   // JSON-encoded string[] of AdminSectionKey values, same shortcut used for
   // `images`/`media` elsewhere. Never includes "roles": delegating who can
   // delegate is admin-only, to avoid a staff account escalating itself or
-  // others. Ignored entirely for role ADMIN, which already has every duty.
-  // See lib/permissions.ts.
+  // others. Ignored entirely for role ADMIN, which already has every duty,
+  // and ignored for a USER with a `customRole` assigned -- that role's own
+  // permissions take over instead (see lib/permissions.ts). This field
+  // remains the duty set for ad-hoc, one-off delegation with no named role.
   permissions   String    @default("[]")
+  // A reusable, named duty set (e.g. "Support agent") an ADMIN can create
+  // once and assign to any number of USER accounts, as an alternative to
+  // picking ad-hoc `permissions` per person. Null = no role assigned, falls
+  // back to `permissions` above. Deleting a Role clears this back to null
+  // (onDelete: SetNull) rather than leaving a dangling reference -- the
+  // affected users simply revert to their own ad-hoc `permissions`.
+  roleId        String?
+  customRole    Role?     @relation(fields: [roleId], references: [id], onDelete: SetNull)
   // Self-serve paid badge (KES/day, via M-Pesa -- see
   // lib/verificationPricing.ts, lib/actions/verification.ts). Null/past =
   // not verified. Also raises the radius an unverified owner's listings
@@ -148,6 +246,14 @@ model User {
   assignedTickets  SupportTicket[]  @relation("TicketAssignee")
   supportMessages  SupportMessage[] @relation("MessageSender")
   tourRequests     TourRequest[]    @relation("TourRequester")
+  feedback         Feedback[]       @relation("FeedbackAuthor")
+
+  sentStaffInvites   StaffInvite[]     @relation("StaffInviteSender")
+  sentOwnerInvites   OwnerInvite[]     @relation("OwnerInviteSender")
+  // Team members this account (as owner) has delegated access to.
+  delegatedManagers  OwnerDelegation[] @relation("DelegationOwner")
+  // Other accounts this user has been delegated access to manage.
+  managedAccounts    OwnerDelegation[] @relation("DelegationManager")
 }
 
 model Account {
@@ -369,6 +475,19 @@ model SupportTicket {
   // still unanswered by a human. See lib/actions/support.ts and HealthPanel.
   firstStaffReplyAt DateTime?
   resolvedAt        DateTime?
+  // Set when the AI's own reply signals it fully answered the question
+  // (see the [[STATUS:...]] marker convention in lib/ai.ts) and no human
+  // ever needed to step in. Chats are not kept around once they're this --
+  // cleanupResolvedTickets() in lib/actions/support.ts deletes them after a
+  // short grace period. A ticket that instead needed a human is retained
+  // (and emailed immediately) precisely so staff can see it.
+  aiResolved Boolean @default(false)
+  // True once the AI has ever flagged this ticket for a human (ESCALATE),
+  // or staff has assigned/replied to it. Distinct from aiResolved staying
+  // false, which also covers "no AI verdict yet" -- needsHuman is the
+  // explicit signal that protects a ticket from deletion (both the
+  // close-on-exit delete in closeChatSession and cleanupResolvedTickets).
+  needsHuman Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -389,6 +508,12 @@ model SupportMessage {
   // have no User behind them.
   senderId String?
   body     String
+  // Short outcome label for AI/SYSTEM turns only ("answered" | "clarify") --
+  // a compact record of whether that reply resolved things or needed a
+  // human, for admin scanning, kept alongside (not instead of) the full
+  // text so the live chat itself is unaffected. Null for USER/STAFF
+  // messages. See runAiFollowUp in lib/actions/support.ts.
+  outcome   String?
   createdAt DateTime @default(now())
 
   ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
@@ -435,4 +560,34 @@ model SystemIssue {
 
   @@index([severity])
   @@index([createdAt])
+}
+
+// Latest reachability/latency snapshot for an external AI provider (see
+// lib/providerHealth.ts). One row per provider, upserted -- not a log, just
+// "what did the last check say". Refreshed every 6h by the same cron that
+// sends the health digest (app/api/cron/health/route.ts), plus on demand via
+// the health dashboard's "Check now" button, so viewing the dashboard itself
+// never has to wait on a live external API call.
+model ProviderHealthCheck {
+  provider  String   @id
+  ok        Boolean
+  latencyMs Int?
+  detail    String?
+  checkedAt DateTime @updatedAt
+}
+
+// General product feedback -- distinct from Report (which flags a specific
+// listing) and SupportTicket (which is a help request needing a reply).
+// Purely informational: admins/delegated staff read it, nothing in the app
+// acts on it automatically. See lib/actions/feedback.ts.
+model Feedback {
+  id        String   @id @default(cuid())
+  userId    String
+  rating    Int?
+  message   String
+  createdAt DateTime @default(now())
+
+  user User @relation("FeedbackAuthor", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

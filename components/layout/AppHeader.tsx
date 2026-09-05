@@ -4,10 +4,8 @@ import type { Session } from "next-auth";
 import { AuthButton } from "./AuthButton";
 import { InstallAppButton } from "./InstallAppButton";
 import { ThemeToggle } from "./ThemeToggle";
-import { SupportButton } from "./SupportButton";
 import { NavLinkPendingHint } from "./AppNav";
 import { HeroAdSlot } from "@/components/ads/HeroAdSlot";
-import { getSupportContact } from "@/lib/support";
 
 // Ad fetching lives entirely in HeroAdSlot (client-side) now, not here --
 // AppHeader sits in the root layout so the video survives tab navigation,
@@ -15,8 +13,10 @@ import { getSupportContact } from "@/lib/support";
 // active. HeroAdSlot reads that itself via useSearchParams so the ad shown
 // actually matches the category being browsed instead of showing the same
 // ad on every tab regardless of its listing's type.
+//
+// Support is a fixed bottom-right bubble instead of a header icon -- see
+// SupportButton, rendered once at the root layout.
 export async function AppHeader({ session }: { session: Session | null }) {
-  const supportContact = await getSupportContact();
   return (
     <header className="border-b border-zinc-200 dark:border-zinc-800">
       <div className="mx-auto flex max-w-5xl flex-col gap-3 px-4 py-4">
@@ -28,7 +28,6 @@ export async function AppHeader({ session }: { session: Session | null }) {
           </Link>
           <div className="flex items-center gap-4">
             <ThemeToggle />
-            <SupportButton contact={supportContact} signedIn={!!session} />
             <InstallAppButton />
             <AuthButton signedIn={!!session} />
           </div>

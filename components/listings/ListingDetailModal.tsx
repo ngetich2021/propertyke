@@ -166,10 +166,10 @@ export function ListingDetailModal({ listingId, onClose }: { listingId: string; 
               )}
             </div>
 
-            {(detail.isOwner || detail.isAdmin) && (
+            {detail.canManage && (
               <div className="mt-4 flex flex-col gap-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  {(detail.isOwner || detail.isAdmin) && <EditListingToggle listing={detail.listing} />}
+                  <EditListingToggle listing={detail.listing} />
                   <button
                     type="button"
                     onClick={handleDelete}
@@ -188,7 +188,7 @@ export function ListingDetailModal({ listingId, onClose }: { listingId: string; 
               </div>
             )}
 
-            {!detail.isOwner && !detail.isAdmin && (
+            {!detail.canManage && (
               <div className="mt-6 max-w-sm rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
                 <h2 className="mb-2 text-sm font-semibold">Interested?</h2>
                 {detail.signedIn ? (
@@ -215,7 +215,7 @@ export function ListingDetailModal({ listingId, onClose }: { listingId: string; 
               </div>
             )}
 
-            {detail.signedIn && !detail.isOwner && !detail.isAdmin && (
+            {detail.signedIn && !detail.canManage && (
               <div className="mt-3">
                 <ReportForm listingId={detail.listing.id} />
               </div>

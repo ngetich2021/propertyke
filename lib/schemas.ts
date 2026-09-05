@@ -125,11 +125,81 @@ export const adminSectionSchema = z.enum([
   "support",
   "tours",
   "health",
+  "feedback",
 ]);
 
 export const permissionsFormSchema = z.object({
   userId: z.string().min(1),
   permissions: z.array(adminSectionSchema),
+});
+
+const roleNameSchema = z
+  .string()
+  .trim()
+  .min(2, { error: "Name must be at least 2 characters." })
+  .max(40, { error: "Name must be under 40 characters." });
+
+export const createRoleFormSchema = z.object({
+  name: roleNameSchema,
+  permissions: z.array(adminSectionSchema),
+});
+
+export const updateRoleFormSchema = z.object({
+  roleId: z.string().min(1),
+  name: roleNameSchema,
+  permissions: z.array(adminSectionSchema),
+});
+
+export const deleteRoleFormSchema = z.object({
+  roleId: z.string().min(1),
+});
+
+export const assignCustomRoleFormSchema = z.object({
+  userId: z.string().min(1),
+  // Empty string means "no custom role" -- falls back to ad-hoc permissions.
+  roleId: z.string().optional(),
+});
+
+const inviteEmailSchema = z
+  .email({ error: "Enter a valid email." })
+  .trim()
+  .toLowerCase();
+
+// Admin-issued staff invite (see StaffInvite in schema.prisma) -- same
+// role/permissions shape as updateRole/updatePermissions above, just
+// targeting an email instead of an existing userId.
+export const inviteStaffFormSchema = z.object({
+  email: inviteEmailSchema,
+  role: userRoleSchema,
+  roleId: z.string().optional(),
+  permissions: z.array(adminSectionSchema),
+});
+
+export const revokeStaffInviteFormSchema = z.object({
+  inviteId: z.string().min(1),
+});
+
+const ownerDutySchema = z.enum(["listings", "ads", "orders"]);
+
+// An individual account inviting someone onto their own "Team" (see
+// OwnerInvite/OwnerDelegation in schema.prisma) -- scoped to that account's
+// own resources, unrelated to the admin invite/schema above.
+export const inviteTeamMemberFormSchema = z.object({
+  email: inviteEmailSchema,
+  scopes: z.array(ownerDutySchema).min(1, { error: "Pick at least one thing they can help with." }),
+});
+
+export const revokeTeamInviteFormSchema = z.object({
+  inviteId: z.string().min(1),
+});
+
+export const updateTeamMemberScopesFormSchema = z.object({
+  delegationId: z.string().min(1),
+  scopes: z.array(ownerDutySchema),
+});
+
+export const removeTeamMemberFormSchema = z.object({
+  delegationId: z.string().min(1),
 });
 
 export const listingStatusFormSchema = z.object({
@@ -170,6 +240,13 @@ export const profileFormSchema = z.object({
   ),
 });
 
+// Same fields as profileFormSchema (self-service, lib/actions/settings.ts)
+// plus the target user -- used when an ADMIN edits someone else's profile
+// from the Users panel (lib/actions/users.ts).
+export const adminUpdateUserProfileFormSchema = profileFormSchema.extend({
+  userId: z.string().min(1),
+});
+
 export const ticketStatusSchema = z.enum(["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"]);
 export const tourStatusSchema = z.enum(["REQUESTED", "CONFIRMED", "DECLINED", "DONE", "CANCELLED"]);
 
@@ -206,6 +283,14 @@ export const tourRequestFormSchema = z.object({
 export const tourStatusFormSchema = z.object({
   tourId: z.string().min(1),
   status: tourStatusSchema,
+});
+
+export const feedbackFormSchema = z.object({
+  rating: z.preprocess(
+    (v) => (v === "" || v === null || v === undefined ? undefined : Number(v)),
+    z.number().int().min(1).max(5).optional()
+  ),
+  message: z.string().trim().min(3, { error: "Tell us a bit more." }).max(1000),
 });
 
 export type ActionState = {

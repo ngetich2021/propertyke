@@ -8,6 +8,7 @@ import { parseAdMedia } from "@/lib/adMedia";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Spinner } from "@/components/ui/Spinner";
+import { RevealPhoneButton } from "@/components/ui/RevealPhoneButton";
 import { AdForm } from "@/components/listings/AdForm";
 import { ExtendAdForm } from "@/components/listings/ExtendAdForm";
 import type { Ad, Listing, User } from "@/app/generated/prisma/client";
@@ -86,11 +87,7 @@ export function AdDetailModal({ ad, onClose }: { ad: AdWithListing; onClose: () 
                 <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-400">Posted by</p>
                 <p>{ad.owner.name ?? "—"}</p>
                 <p className="text-zinc-500">{ad.owner.email}</p>
-                {ad.owner.phone && (
-                  <a href={`tel:${ad.owner.phone}`} className="underline">
-                    📞 {ad.owner.phone}
-                  </a>
-                )}
+                {ad.owner.phone && <RevealPhoneButton phone={ad.owner.phone} className="underline" />}
               </div>
             )}
 

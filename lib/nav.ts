@@ -13,7 +13,9 @@ export type AccountTab =
   | "orders"
   | "advertise"
   | "add-property"
+  | "team"
   | "settings"
+  | "feedback"
   | "admin";
 
 export type AdminSectionKey =
@@ -28,7 +30,8 @@ export type AdminSectionKey =
   | "orders"
   | "support"
   | "tours"
-  | "health";
+  | "health"
+  | "feedback";
 
 export const BASE_TABS: { key: Tab; label: string }[] = [
   { key: "lands", label: "Lands" },
@@ -42,7 +45,9 @@ export const ACCOUNT_TABS: { key: AccountTab; label: string }[] = [
   { key: "orders", label: "orders" },
   { key: "advertise", label: "advertise" },
   { key: "add-property", label: "add property" },
+  { key: "team", label: "team" },
   { key: "settings", label: "settings" },
+  { key: "feedback", label: "feedback" },
 ];
 
 export const ADMIN_SECTIONS: { key: AdminSectionKey; label: string }[] = [
@@ -58,6 +63,7 @@ export const ADMIN_SECTIONS: { key: AdminSectionKey; label: string }[] = [
   { key: "support", label: "support" },
   { key: "tours", label: "tours" },
   { key: "health", label: "health" },
+  { key: "feedback", label: "feedback" },
 ];
 
 export function isTab(value: string | undefined): value is Tab {

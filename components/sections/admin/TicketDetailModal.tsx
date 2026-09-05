@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useActionState } from "react";
+import { useEffect, useRef, useState, useActionState, type KeyboardEvent } from "react";
 import {
   getTicketForStaff,
   staffReplyToTicket,
@@ -23,7 +23,7 @@ const SENDER_LABEL: Record<string, string> = {
 };
 
 const STATUS_OPTIONS = ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"] as const;
-const POLL_MS = 4000;
+const POLL_MS = 1500;
 
 export function TicketDetailModal({ ticketId, onClose }: { ticketId: string; onClose: () => void }) {
   const [ticket, setTicket] = useState<Ticket | undefined>(undefined);
@@ -31,6 +31,14 @@ export function TicketDetailModal({ ticketId, onClose }: { ticketId: string; onC
   const [replyState, replyAction] = useActionState(staffReplyToTicket, undefined);
   const formRef = useRef<HTMLFormElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  // A plain ref, not the `isPending` from useActionState: several Enter
+  // presses fired faster than React re-renders (proven live -- rapid-fire
+  // Enter produced two identical STAFF messages from one intended reply)
+  // all read the same stale `isPending === false` from the last completed
+  // render before the first submit's pending state ever committed. A ref
+  // mutates synchronously inside the handler itself, so the very next
+  // keydown -- re-render or not -- sees it.
+  const isSubmittingRef = useRef(false);
 
   async function refresh() {
     const t = await getTicketForStaff(ticketId);
@@ -38,14 +46,32 @@ export function TicketDetailModal({ ticketId, onClose }: { ticketId: string; onC
   }
 
   useEffect(() => {
-    getTicketForStaff(ticketId).then(setTicket);
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    // Self-scheduling instead of setInterval: this query can take seconds on
+    // a loaded connection, and a fixed 1.5s interval piling up overlapping
+    // requests meant an older, slower response could land after a newer one
+    // and clobber a reply the staff member had just sent -- the "system
+    // misbehaved" symptom. The next poll only fires once the previous one
+    // has actually resolved (see SupportChatPanel for the same fix on the
+    // customer side).
+    async function poll() {
+      const t = await getTicketForStaff(ticketId);
+      if (!cancelled) {
+        setTicket(t);
+        timer = setTimeout(poll, POLL_MS);
+      }
+    }
+    poll();
     listSupportStaff().then(setStaff);
-    const interval = setInterval(refresh, POLL_MS);
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [ticketId]);
 
   useEffect(() => {
+    isSubmittingRef.current = false;
     if (replyState?.success) {
       formRef.current?.reset();
       getTicketForStaff(ticketId).then(setTicket);
@@ -71,6 +97,16 @@ export function TicketDetailModal({ ticketId, onClose }: { ticketId: string; onC
     formData.set("status", status);
     await updateTicketStatus(undefined, formData);
     refresh();
+  }
+
+  function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      // See isSubmittingRef above for why this is a ref, not `isPending`.
+      if (isSubmittingRef.current) return;
+      isSubmittingRef.current = true;
+      formRef.current?.requestSubmit();
+    }
   }
 
   return (
@@ -129,8 +165,19 @@ export function TicketDetailModal({ ticketId, onClose }: { ticketId: string; onC
                       : "bg-zinc-100 dark:bg-zinc-800"
                 }`}
               >
-                <p className="text-[10px] font-semibold tracking-wide uppercase opacity-70">
+                <p className="flex items-center gap-1.5 text-[10px] font-semibold tracking-wide uppercase opacity-70">
                   {SENDER_LABEL[m.sender] ?? m.sender}
+                  {m.outcome && (
+                    <span
+                      className={`rounded px-1 py-0.5 normal-case ${
+                        m.outcome === "answered"
+                          ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300"
+                          : "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+                      }`}
+                    >
+                      {m.outcome}
+                    </span>
+                  )}
                 </p>
                 <p className="whitespace-pre-line">{m.body}</p>
               </div>
@@ -145,7 +192,8 @@ export function TicketDetailModal({ ticketId, onClose }: { ticketId: string; onC
               required
               rows={2}
               maxLength={2000}
-              placeholder="Reply to the customer…"
+              placeholder="Reply to the customer… (Enter to send, Shift+Enter for a new line)"
+              onKeyDown={handleKeyDown}
               className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
             />
             {replyState?.error && <p className="text-xs text-red-600 dark:text-red-400">{replyState.error}</p>}

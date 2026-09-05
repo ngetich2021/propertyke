@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/dal";
-import { roleFormSchema, permissionsFormSchema } from "@/lib/schemas";
+import { requireAdmin, requireSection } from "@/lib/dal";
+import { roleFormSchema, permissionsFormSchema, adminUpdateUserProfileFormSchema } from "@/lib/schemas";
 import type { ActionState } from "@/lib/schemas";
 
 export async function updateRole(
@@ -49,6 +49,41 @@ export async function updatePermissions(
   await prisma.user.update({
     where: { id: parsed.data.userId },
     data: { permissions: JSON.stringify(parsed.data.permissions) },
+  });
+
+  revalidatePath("/");
+  return { success: true };
+}
+
+// Lets anyone with the delegable "users" duty (or a full ADMIN) edit another
+// user's profile fields from the Users panel -- same fields (and
+// validation) as the user's own self-service profile form (see
+// updateProfile in lib/actions/settings.ts), just targeting `userId`
+// instead of the caller. Unlike role/duty changes, editing a name/phone
+// isn't a privilege-escalation risk, so this doesn't need requireAdmin.
+export async function updateUserProfileAsAdmin(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  await requireSection("users");
+
+  const parsed = adminUpdateUserProfileFormSchema.safeParse({
+    userId: formData.get("userId"),
+    name: formData.get("name"),
+    businessName: formData.get("businessName") || undefined,
+    phone: formData.get("phone") || undefined,
+  });
+  if (!parsed.success) {
+    return { fieldErrors: parsed.error.flatten().fieldErrors };
+  }
+
+  await prisma.user.update({
+    where: { id: parsed.data.userId },
+    data: {
+      name: parsed.data.name,
+      businessName: parsed.data.businessName ?? null,
+      phone: parsed.data.phone,
+    },
   });
 
   revalidatePath("/");

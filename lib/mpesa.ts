@@ -180,6 +180,18 @@ export async function queryStkPush(checkoutRequestId: string): Promise<StkQueryR
     if (String(data.ResultCode) === "0") {
       return { status: "SUCCESS" };
     }
+    // A query fired before the customer has even entered their PIN (e.g.
+    // MpesaPaymentGate's first poll, right after the push was just sent)
+    // comes back as ResultCode 4999 / "The transaction is still under
+    // processing" instead of the errorCode envelope above -- this is NOT a
+    // decline. Treating it as FAILED (as this used to) permanently marks a
+    // payment that's still actually in flight, and since resolvePayment only
+    // ever applies a payment while it's still PENDING, the real success
+    // callback that lands moments later is then silently ignored -- the
+    // customer is charged but never gets what they paid for.
+    if (String(data.ResultCode) === "4999") {
+      return { status: "PENDING" };
+    }
     if (data.ResultCode !== undefined) {
       const code = String(data.ResultCode);
       const reason = RESULT_CODE_MESSAGE[code] || data.ResultDesc || "The payment was not completed.";

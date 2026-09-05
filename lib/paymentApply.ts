@@ -136,7 +136,9 @@ async function applyAdCreate(payment: Payment, data: Record<string, unknown>) {
   await prisma.ad.create({
     data: {
       listingId: data.listingId as string,
-      ownerId: payment.userId,
+      // Falls back to payment.userId for payloads created before this field
+      // existed -- see the comment on `ownerId` in initiateAdPayment.
+      ownerId: (data.ownerId as string | undefined) ?? payment.userId,
       amount: payment.amount,
       days: data.days as number,
       companyName: data.companyName as string,
