@@ -12,9 +12,14 @@ export function AppFooter() {
       >
         <MessageCircle size={14} /> Join our WhatsApp community
       </a>
-      <Link href="/terms" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">
-        Terms &amp; Conditions
-      </Link>
+      <div className="flex items-center gap-3">
+        <Link href="/terms" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">
+          Terms &amp; Conditions
+        </Link>
+        <Link href="/privacy" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">
+          Privacy Policy
+        </Link>
+      </div>
     </footer>
   );
 }

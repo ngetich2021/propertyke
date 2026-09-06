@@ -5,6 +5,7 @@ import { updateProfile } from "@/lib/actions/settings";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { FieldError } from "@/components/ui/FieldError";
 import { VerifyAccountForm } from "@/components/sections/account/VerifyAccountForm";
+import { DeleteAccountForm } from "@/components/sections/account/DeleteAccountForm";
 import { sanitizePhoneInput } from "@/lib/phone";
 
 export function SettingsSection({
@@ -94,6 +95,11 @@ export function SettingsSection({
           unverified accounts.
         </p>
         <VerifyAccountForm verifiedUntil={user.verifiedUntil} defaultMpesaPhone={user.phone} />
+      </div>
+
+      <div className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
+        <h3 className="mb-2 text-sm font-semibold">Danger zone</h3>
+        <DeleteAccountForm />
       </div>
     </div>
   );
