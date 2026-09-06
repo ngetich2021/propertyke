@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.estatefinderhub.www.twa",
+    "sha256_cert_fingerprints": ["24:02:74:CE:98:64:29:4F:86:30:84:27:50:A1:51:1B:BA:8A:92:38:D1:C7:68:D0:BD:F6:BB:92:66:7A:0A:9D"]
+  }
+}]
