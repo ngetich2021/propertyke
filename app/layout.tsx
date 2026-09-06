@@ -45,12 +45,25 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://www.estatefinderhub.com"),
   title: "EstateFinderHub",
   description: "Find and list lands, properties, and rentals.",
   appleWebApp: {
     capable: true,
     title: "EstateFinderHub",
     statusBarStyle: "default",
+  },
+  openGraph: {
+    title: "EstateFinderHub",
+    description: "Find and list lands, properties, and rentals.",
+    url: "https://www.estatefinderhub.com",
+    siteName: "EstateFinderHub",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "EstateFinderHub",
+    description: "Find and list lands, properties, and rentals.",
   },
 };
 
