@@ -3,6 +3,9 @@
   "target": {
     "namespace": "android_app",
     "package_name": "com.estatefinderhub.www.twa",
-    "sha256_cert_fingerprints": ["24:02:74:CE:98:64:29:4F:86:30:84:27:50:A1:51:1B:BA:8A:92:38:D1:C7:68:D0:BD:F6:BB:92:66:7A:0A:9D"]
+    "sha256_cert_fingerprints": [
+      "24:02:74:CE:98:64:29:4F:86:30:84:27:50:A1:51:1B:BA:8A:92:38:D1:C7:68:D0:BD:F6:BB:92:66:7A:0A:9D",
+      "F8:83:05:D4:FE:02:20:35:3A:0A:F5:C4:86:A1:65:6C:7B:F0:6A:EC:16:DC:3A:E1:52:0C:1C:E2:44:B8:8D:68"
+    ]
   }
 }]
