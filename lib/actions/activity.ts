@@ -48,7 +48,7 @@ export async function getRecentActivity(limit = 20): Promise<ActivityItem[]> {
     ...orders.map((o) => ({
       id: `order-${o.id}`,
       at: o.createdAt,
-      description: `${o.buyer.email} made an order on "${o.listing.title}"`,
+      description: `${o.buyer.email} made an order on "${o.listing?.title ?? "a since-removed listing"}"`,
     })),
     ...ads.map((a) => ({
       id: `ad-${a.id}`,
@@ -58,7 +58,7 @@ export async function getRecentActivity(limit = 20): Promise<ActivityItem[]> {
     ...reports.map((r) => ({
       id: `report-${r.id}`,
       at: r.createdAt,
-      description: `${r.reporter.email} reported "${r.listing.title}"`,
+      description: `${r.reporter.email} reported "${r.listing?.title ?? "a since-removed listing"}"`,
     })),
   ];
 

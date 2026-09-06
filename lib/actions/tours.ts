@@ -66,7 +66,9 @@ export async function updateTourStatus(_prevState: ActionState, formData: FormDa
     include: { listing: true },
   });
   if (!tour) return { error: "Tour request not found." };
-  if (tour.listing.ownerId !== user.id && !hasSectionAccess(user, "tours")) {
+  // tour.listing is null once the listing (or its owner's account) has been
+  // deleted -- only an admin/delegate can still act on it then.
+  if (tour.listing?.ownerId !== user.id && !hasSectionAccess(user, "tours")) {
     return { error: "Not authorized." };
   }
 

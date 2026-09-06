@@ -9,7 +9,7 @@ import { updateOrderStatus } from "@/lib/actions/orders";
 import { formatMoney } from "@/lib/format";
 import type { Order, Listing, User, OrderStatus } from "@/app/generated/prisma/client";
 
-type OrderWithListing = Order & { listing: Listing & { owner?: User }; buyer?: User };
+type OrderWithListing = Order & { listing: (Listing & { owner?: User }) | null; buyer?: User };
 
 const STATUS_OPTIONS: { value: OrderStatus; label: string }[] = [
   { value: "PENDING", label: "Pending" },
@@ -45,13 +45,13 @@ export function OrderDetailModal({
       <div className="flex flex-col gap-4 text-sm">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h3 className="text-base font-semibold">{order.listing.title}</h3>
+            <h3 className="text-base font-semibold">{order.listing?.title ?? "Listing removed"}</h3>
             <p className="text-xs text-zinc-500">Placed {new Date(order.createdAt).toLocaleString()}</p>
           </div>
           <StatusBadge status={order.status} />
         </div>
 
-        <p className="text-lg font-semibold">{formatMoney(order.amount, order.listing.currency)}</p>
+        <p className="text-lg font-semibold">{formatMoney(order.amount, order.listing?.currency)}</p>
 
         {canManage && order.buyer && (
           <div className="rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
@@ -61,7 +61,7 @@ export function OrderDetailModal({
           </div>
         )}
 
-        {role === "admin" && order.listing.owner && (
+        {role === "admin" && order.listing?.owner && (
           <div className="rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
             <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-400">Seller</p>
             <p>{order.listing.owner.businessName ?? order.listing.owner.name ?? "—"}</p>

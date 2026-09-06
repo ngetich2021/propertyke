@@ -347,7 +347,13 @@ model Listing {
 
 model Order {
   id        String      @id @default(cuid())
-  listingId String
+  // Nullable, and SetNull (not Cascade) on the listing side: if the listing
+  // is deleted -- directly, or because its owner deleted their account --
+  // the order itself must survive. It's the buyer's own record of having
+  // made an offer, and admins need it too; only the seller's own data is
+  // supposed to disappear when they delete their account, per the buyerId
+  // relation below staying Cascade.
+  listingId String?
   buyerId   String
   amount    Float
   status    OrderStatus @default(PENDING)
@@ -360,8 +366,8 @@ model Order {
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
-  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  buyer   User    @relation("OrderBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  listing Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  buyer   User     @relation("OrderBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
 
   @@index([listingId])
   @@index([buyerId])
@@ -446,15 +452,19 @@ model Payment {
 
 model Report {
   id         String       @id @default(cuid())
-  listingId  String
+  // Nullable + SetNull, same reasoning as Order.listingId: the reporter's
+  // own report (and the admin moderation trail) must outlive the listing it
+  // was filed against, including when the listing disappears because its
+  // owner deleted their account.
+  listingId  String?
   reporterId String
   reason     String
   status     ReportStatus @default(OPEN)
   createdAt  DateTime     @default(now())
   updatedAt  DateTime     @updatedAt
 
-  listing  Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  reporter User    @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  listing  Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  reporter User     @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
 
   @@index([listingId])
   @@index([reporterId])
@@ -528,7 +538,9 @@ model SupportMessage {
 // lib/actions/tours.ts.
 model TourRequest {
   id            String     @id @default(cuid())
-  listingId     String
+  // Nullable + SetNull, same reasoning as Order.listingId: the requester's
+  // own tour history must outlive the listing it was booked against.
+  listingId     String?
   requesterId   String
   preferredDate DateTime
   notes         String?
@@ -536,8 +548,8 @@ model TourRequest {
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
-  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  requester User    @relation("TourRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  listing   Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  requester User     @relation("TourRequester", fields: [requesterId], references: [id], onDelete: Cascade)
 
   @@index([listingId])
   @@index([requesterId])

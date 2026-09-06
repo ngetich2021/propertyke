@@ -124,9 +124,9 @@ export async function GET(request: NextRequest) {
         "reports.xlsx",
         reports.map((r) => ({
           ID: r.id,
-          Listing: r.listing.title,
-          ListingOwnerEmail: r.listing.owner.email,
-          ListingOwnerPhone: r.listing.owner.phone ?? "",
+          Listing: r.listing?.title ?? "(listing removed)",
+          ListingOwnerEmail: r.listing?.owner.email ?? "",
+          ListingOwnerPhone: r.listing?.owner.phone ?? "",
           Reporter: r.reporter.email,
           ReporterPhone: r.reporter.phone ?? "",
           Reason: r.reason,
@@ -154,11 +154,11 @@ export async function GET(request: NextRequest) {
         "orders.xlsx",
         orders.map((o) => ({
           ID: o.id,
-          Listing: o.listing.title,
+          Listing: o.listing?.title ?? "(listing removed)",
           Buyer: o.buyer.email,
           BuyerPhone: o.contactPhone,
           PreferredContact: o.contactMethod,
-          Seller: o.listing.owner.email,
+          Seller: o.listing?.owner.email ?? "",
           Amount: o.amount,
           Status: o.status,
           Message: o.message ?? "",
@@ -183,7 +183,7 @@ export async function GET(request: NextRequest) {
       return toXlsxResponse("my-orders.xlsx", [
         ...asBuyer.map((o) => ({
           Role: "Buyer",
-          Listing: o.listing.title,
+          Listing: o.listing?.title ?? "(listing removed)",
           Counterparty: "",
           Amount: o.amount,
           Status: o.status,
@@ -191,7 +191,7 @@ export async function GET(request: NextRequest) {
         })),
         ...asOwner.map((o) => ({
           Role: "Owner",
-          Listing: o.listing.title,
+          Listing: o.listing?.title ?? "(listing removed)",
           Counterparty: o.buyer.email,
           Amount: o.amount,
           Status: o.status,

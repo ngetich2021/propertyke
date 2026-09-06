@@ -6,7 +6,9 @@ import { DataTable, STICKY_COL_1, STICKY_COL_2, SortableHeader, type DataTableCo
 import { ClickableOrderRow } from "@/components/listings/ClickableOrderRow";
 import type { Listing, Order, User } from "@/app/generated/prisma/client";
 
-type OrderRow = Order & { listing: Listing & { owner: User }; buyer: User };
+// listing is null once the listing (or its owner's account) has been
+// deleted -- the order itself still shows for the buyer and admin.
+type OrderRow = Order & { listing: (Listing & { owner: User }) | null; buyer: User };
 
 const STATUS_OPTIONS = [
   { value: "PENDING", label: "Pending" },
@@ -29,10 +31,10 @@ const columns: DataTableColumnDef<OrderRow>[] = [
   },
   {
     id: "listing",
-    accessorFn: (row) => row.listing.title,
+    accessorFn: (row) => row.listing?.title ?? "Listing removed",
     header: ({ column }) => <SortableHeader label="Listing" column={column} />,
     meta: { headerClassName: STICKY_COL_2, cellClassName: STICKY_COL_2 },
-    cell: ({ row }) => row.original.listing.title,
+    cell: ({ row }) => row.original.listing?.title ?? "Listing removed",
   },
   {
     id: "buyer",
@@ -46,18 +48,18 @@ const columns: DataTableColumnDef<OrderRow>[] = [
   },
   {
     id: "seller",
-    accessorFn: (row) => row.listing.owner.businessName ?? row.listing.owner.name ?? row.listing.owner.email,
+    accessorFn: (row) => row.listing?.owner.businessName ?? row.listing?.owner.name ?? row.listing?.owner.email ?? "Account deleted",
     header: ({ column }) => <SortableHeader label="Seller" column={column} />,
     cell: ({ row }) => (
       <span className="block max-w-35 truncate text-zinc-500">
-        {row.original.listing.owner.businessName ?? row.original.listing.owner.name ?? row.original.listing.owner.email}
+        {row.original.listing?.owner.businessName ?? row.original.listing?.owner.name ?? row.original.listing?.owner.email ?? "Account deleted"}
       </span>
     ),
   },
   {
     accessorKey: "amount",
     header: ({ column }) => <SortableHeader label="Amount" column={column} />,
-    cell: ({ row }) => formatMoney(row.original.amount, row.original.listing.currency),
+    cell: ({ row }) => formatMoney(row.original.amount, row.original.listing?.currency),
   },
   {
     accessorKey: "status",
@@ -75,12 +77,12 @@ export function AdminOrdersTable({ orders }: { orders: OrderRow[] }) {
       data={orders}
       getRowSearchText={(order) =>
         [
-          order.listing.title,
+          order.listing?.title,
           order.buyer.name,
           order.buyer.email,
-          order.listing.owner.businessName,
-          order.listing.owner.name,
-          order.listing.owner.email,
+          order.listing?.owner.businessName,
+          order.listing?.owner.name,
+          order.listing?.owner.email,
           order.contactPhone,
           order.status,
         ]

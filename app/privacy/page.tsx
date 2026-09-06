@@ -41,8 +41,8 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Listing and ad content:</strong> anything you submit to create a listing or ad —
-            title, description, price, address, map coordinates, and photos (photos are hosted by
-            our image provider, Cloudinary).
+            title, description, price, address, map coordinates, and photos (photos are stored on
+            our servers).
           </li>
           <li>
             <strong>Inquiries/orders:</strong> when you contact a listing owner, we store the
@@ -54,10 +54,10 @@ export default function PrivacyPage() {
             only to run that search and is not stored linked to your account.
           </li>
           <li>
-            <strong>Payment information:</strong> to pay for a verification badge or an ad, we send
-            an M-Pesa STK push to the phone number you provide and record the amount, status, and
-            M-Pesa transaction receipt code once Safaricom confirms payment. We never see or store
-            your M-Pesa PIN, and we do not process card payments.
+            <strong>Payment information:</strong> to pay for a verification badge or an ad, we send a
+            payment prompt to the phone number you provide, via our online payment provider, and
+            record the amount, status, and transaction receipt code once payment is confirmed. We
+            never see or store your mobile money PIN.
           </li>
           <li>
             <strong>Support messages:</strong> messages you send our in-app support chat, live chat
@@ -74,7 +74,7 @@ export default function PrivacyPage() {
         <ul className="list-disc space-y-1 pl-5">
           <li>To create and secure your account, and let you sign in.</li>
           <li>To publish and display your listings/ads, and let buyers or renters contact you.</li>
-          <li>To process M-Pesa payments and activate the paid feature you purchased.</li>
+          <li>To process payments and activate the paid feature you purchased.</li>
           <li>To search for and show listings near a location you choose.</li>
           <li>To respond to support requests and send account/listing-related notifications (e.g. a listing is about to expire) by email.</li>
           <li>To keep the Platform secure and prevent fraud or abuse.</li>
@@ -86,11 +86,10 @@ export default function PrivacyPage() {
         <ul className="mt-2 list-disc space-y-1 pl-5">
           <li><strong>Other users:</strong> the phone number/business name on your listings, and the contact details you submit with an inquiry, are visible to the other party to that listing/inquiry.</li>
           <li><strong>Google</strong> — for sign-in.</li>
-          <li><strong>Safaricom M-Pesa (Daraja API)</strong> — to process payments.</li>
-          <li><strong>Cloudinary</strong> — to host listing/ad images.</li>
-          <li><strong>Google Gemini and Groq</strong> — our in-app support chat sends your message to one of these AI providers to generate a first-line automated reply. Chats that are fully resolved by the automated reply are periodically deleted; chats escalated to a human team member are kept so we can follow up.</li>
-          <li><strong>Our email provider</strong> — to send transactional emails (listing reactivation links, expiry reminders, invites).</li>
-          <li><strong>Vercel and Cloudflare</strong> — our hosting/CDN providers, who process standard request logs.</li>
+          <li><strong>Our online payment provider</strong> — to process payments.</li>
+          <li><strong>Third-party AI service providers</strong> — our in-app support chat sends your message to one of these providers to generate a first-line automated reply. Chats that are fully resolved by the automated reply are periodically deleted; chats escalated to a human team member are kept so we can follow up.</li>
+          <li><strong>Our email service provider</strong> — to send transactional emails (listing reactivation links, expiry reminders, invites).</li>
+          <li><strong>Our hosting and network providers</strong> — who process standard request logs.</li>
         </ul>
         <p className="mt-2">We may also disclose information if required by law, or to investigate fraud or protect the safety of users.</p>
       </Section>
@@ -107,10 +106,10 @@ export default function PrivacyPage() {
           We keep account, listing, order, and payment records for as long as your account is
           active. Resolved support chats are periodically deleted (see Section 3). If you delete
           your account (Section 6), everything tied to it is permanently deleted from our
-          database immediately — we don&apos;t keep a copy. Note that Safaricom, as the payment
-          processor, retains its own independent record of any M-Pesa transaction under its own
-          regulatory obligations; deleting your EstateFinderHub account does not delete Safaricom&apos;s
-          record of the transaction.
+          database immediately — we don&apos;t keep a copy. Note that our payment provider, as a
+          regulated financial service, retains its own independent record of any transaction under
+          its own regulatory obligations; deleting your EstateFinderHub account does not delete that
+          separate record.
         </p>
       </Section>
 

@@ -3,16 +3,24 @@
 import { useState, type MouseEvent } from "react";
 import type { ReactNode } from "react";
 import { ListingDetailModal } from "@/components/listings/ListingDetailModal";
+import { TableRow } from "@/components/ui/table";
 import { CLICKABLE_ROW_CLASS, handleRowKeyDown, isInteractiveRowClick } from "@/lib/clickableRow";
 
 export function ClickableRow({
   listingId,
   children,
 }: {
-  listingId: string;
+  // Null once the listing has been deleted (e.g. its owner deleted their
+  // account) -- there's nothing left to open, so the row just isn't
+  // clickable.
+  listingId: string | null;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+
+  if (!listingId) {
+    return <TableRow>{children}</TableRow>;
+  }
 
   function handleClick(e: MouseEvent<HTMLTableRowElement>) {
     if (isInteractiveRowClick(e)) return;

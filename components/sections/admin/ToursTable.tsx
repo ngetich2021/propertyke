@@ -5,7 +5,9 @@ import { TourActionsMenu } from "@/components/sections/admin/TourActionsMenu";
 import { DataTable, STICKY_COL_1, STICKY_COL_2, SortableHeader, type DataTableColumnDef } from "@/components/ui/data-table";
 import type { TourRequest, Listing, User } from "@/app/generated/prisma/client";
 
-type Row = TourRequest & { listing: Listing; requester: User };
+// listing is null once the listing (or its owner's account) has been
+// deleted -- the tour request itself still shows for admin.
+type Row = TourRequest & { listing: Listing | null; requester: User };
 
 const STATUS_OPTIONS = ["REQUESTED", "CONFIRMED", "DECLINED", "DONE", "CANCELLED"].map((s) => ({ value: s, label: s }));
 
@@ -22,10 +24,10 @@ const columns: DataTableColumnDef<Row>[] = [
   },
   {
     id: "listing",
-    accessorFn: (row) => row.listing.title,
+    accessorFn: (row) => row.listing?.title ?? "Listing removed",
     header: ({ column }) => <SortableHeader label="Listing" column={column} />,
     meta: { headerClassName: STICKY_COL_2, cellClassName: STICKY_COL_2 },
-    cell: ({ row }) => row.original.listing.title,
+    cell: ({ row }) => row.original.listing?.title ?? "Listing removed",
   },
   {
     id: "requester",
@@ -73,7 +75,7 @@ export function ToursTable({ tours }: { tours: Row[] }) {
       emptyMessage="No site visits requested yet."
       columns={columns}
       data={tours}
-      getRowSearchText={(t) => [t.listing.title, t.requester.name, t.requester.email, t.status].filter(Boolean).join(" ")}
+      getRowSearchText={(t) => [t.listing?.title, t.requester.name, t.requester.email, t.status].filter(Boolean).join(" ")}
       statusFilter={{ columnId: "status", label: "status", options: STATUS_OPTIONS }}
     />
   );

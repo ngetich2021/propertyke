@@ -9,8 +9,10 @@ import { ClickableOrderRow } from "@/components/listings/ClickableOrderRow";
 import type { Listing, Order, User } from "@/app/generated/prisma/client";
 
 type OwnerListing = Listing & { owner: User };
-type OwnerOrderRow = Order & { listing: OwnerListing; buyer: User };
-type BuyerOrderRow = Order & { listing: Listing };
+// listing is null once the listing (or its owner's account) has been
+// deleted -- the order itself still shows for the buyer and any admin.
+type OwnerOrderRow = Order & { listing: OwnerListing | null; buyer: User };
+type BuyerOrderRow = Order & { listing: Listing | null };
 
 const STATUS_OPTIONS = [
   { value: "PENDING", label: "Pending" },
@@ -34,14 +36,14 @@ function buildOwnerColumns(currentUserId: string): DataTableColumnDef<OwnerOrder
   },
   {
     id: "listing",
-    accessorFn: (row) => row.listing.title,
+    accessorFn: (row) => row.listing?.title ?? "Listing removed",
     header: ({ column }) => <SortableHeader label="Listing" column={column} />,
     meta: { headerClassName: STICKY_COL_2, cellClassName: STICKY_COL_2 },
     cell: ({ row }) => (
       <>
         <span className="flex items-center gap-1.5">
-          {row.original.listing.title}
-          {row.original.listing.owner.id !== currentUserId && (
+          {row.original.listing?.title ?? "Listing removed"}
+          {row.original.listing && row.original.listing.owner.id !== currentUserId && (
             <Badge variant="outline" title="You're managing this for them">
               {row.original.listing.owner.businessName ?? row.original.listing.owner.name ?? "Managed"}
             </Badge>
@@ -64,7 +66,7 @@ function buildOwnerColumns(currentUserId: string): DataTableColumnDef<OwnerOrder
   {
     accessorKey: "amount",
     header: ({ column }) => <SortableHeader label="Amount" column={column} />,
-    cell: ({ row }) => formatMoney(row.original.amount, row.original.listing.currency),
+    cell: ({ row }) => formatMoney(row.original.amount, row.original.listing?.currency),
   },
   {
     accessorKey: "status",
@@ -84,15 +86,15 @@ const buyerColumns: DataTableColumnDef<BuyerOrderRow>[] = [
   },
   {
     id: "listing",
-    accessorFn: (row) => row.listing.title,
+    accessorFn: (row) => row.listing?.title ?? "Listing removed",
     header: ({ column }) => <SortableHeader label="Listing" column={column} />,
     meta: { headerClassName: STICKY_COL_2, cellClassName: STICKY_COL_2 },
-    cell: ({ row }) => row.original.listing.title,
+    cell: ({ row }) => row.original.listing?.title ?? "Listing removed",
   },
   {
     accessorKey: "amount",
     header: ({ column }) => <SortableHeader label="Amount" column={column} />,
-    cell: ({ row }) => formatMoney(row.original.amount, row.original.listing.currency),
+    cell: ({ row }) => formatMoney(row.original.amount, row.original.listing?.currency),
   },
   {
     accessorKey: "status",
@@ -110,7 +112,7 @@ export function OwnerOrdersTable({ orders, currentUserId }: { orders: OwnerOrder
       columns={ownerColumns}
       data={orders}
       getRowSearchText={(order) =>
-        [order.listing.title, order.buyer.name, order.buyer.email, order.status].filter(Boolean).join(" ")
+        [order.listing?.title, order.buyer.name, order.buyer.email, order.status].filter(Boolean).join(" ")
       }
       statusFilter={{ columnId: "status", label: "status", options: STATUS_OPTIONS }}
       renderRow={(order, cells) => (
@@ -129,7 +131,7 @@ export function BuyerOrdersTable({ orders }: { orders: BuyerOrderRow[] }) {
       emptyMessage="You haven't expressed interest in anything yet."
       columns={buyerColumns}
       data={orders}
-      getRowSearchText={(order) => [order.listing.title, order.status].filter(Boolean).join(" ")}
+      getRowSearchText={(order) => [order.listing?.title, order.status].filter(Boolean).join(" ")}
       statusFilter={{ columnId: "status", label: "status", options: STATUS_OPTIONS }}
       renderRow={(order, cells) => (
         <ClickableOrderRow key={order.id} order={order} role="buyer">

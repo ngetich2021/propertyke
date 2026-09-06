@@ -94,11 +94,15 @@ export async function updateOrderStatus(formData: FormData): Promise<void> {
   });
   if (!order) return;
 
+  // order.listing is null once the listing (or its owner's whole account)
+  // has been deleted -- there's no seller left to manage it, so only the
+  // buyer themselves or an admin/delegate can still act on it.
   const canManage =
     order.buyerId === user.id ||
-    order.listing.ownerId === user.id ||
     hasSectionAccess(user, "orders") ||
-    (await canManageOwner(user.id, order.listing.ownerId, "orders"));
+    (order.listing != null &&
+      (order.listing.ownerId === user.id ||
+        (await canManageOwner(user.id, order.listing.ownerId, "orders"))));
   if (!canManage) return;
 
   await prisma.order.update({

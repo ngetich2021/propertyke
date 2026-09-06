@@ -11,7 +11,7 @@ export function ClickableOrderRow({
   role,
   children,
 }: {
-  order: Order & { listing: Listing & { owner?: User }; buyer?: User };
+  order: Order & { listing: (Listing & { owner?: User }) | null; buyer?: User };
   role: "owner" | "buyer" | "admin";
   children: ReactNode;
 }) {
